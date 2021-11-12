@@ -408,12 +408,6 @@ class CANMarathon:
         answer_list = []
         # буфер данных для запроса - задаю ID для запроса
         buffer = self.Buffer()
-        buffer.id = ctypes.c_uint32(can_id_req)
-        # если ID длинный, значит это Extended протокол
-        if can_id_req > 0xFFF:
-            buffer.flags = 2
-        else:
-            buffer.flags = 0
         # массив из одного члена для определения события, по которому сработает CiWaitEvent
         # 0x01 это wflags - флаг интересующих нас событий
         #  = количество кадров в приемной очереди стало больше или равно значению порога + ошибка сети
@@ -426,8 +420,18 @@ class CANMarathon:
         # предполагается, что в messages будут список сообщений по 8 байт для запроса по ID can_id_req
         # поэтому нужно пройти по списку
         for message in messages:
+            # из-за того, что буфер каждый раз обнуляю, надо заново записывать в него ИД и флаг сообщения
+            buffer.id = ctypes.c_uint32(can_id_req)
+            # если ID длинный, значит это Extended протокол
+            if can_id_req > 0xFFF:
+                buffer.flags = 2
+                self.lib.msg_seteff(ctypes.pointer(buffer))
+            else:
+                buffer.flags = 0
+            # записываю данные
             j = 0
             for i in message:
+                print(i, end=' ')
                 buffer.data[j] = ctypes.c_uint8(i)
                 j += 1
             buffer.len = len(message)
@@ -500,7 +504,7 @@ class CANMarathon:
                     # и тогда читаем этот кадр из очереди
                     try:
                         result = self.lib.CiRead(self.can_canal_number, ctypes.pointer(buffer), 1)
-                        # print('Принято сообщение с ID  ' + hex(buffer.id))
+                        print('Принято сообщение с ID  ' + hex(buffer.id))
                     except Exception as e:
                         print('CiRead do not work')
                         pprint(e)

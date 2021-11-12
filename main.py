@@ -76,40 +76,38 @@ rb_param_list = {'current_wheel': {'scale': 'nan',
                                 'address': 109},
                  }
 compare_param_dict = {}
+rtcon_vmu = 0x1850460E
+vmu_rtcon = 0x594
 
 
-def show_vmu_param_values(table: str, param_list: list):
-    purpose_table = getattr(window, table)
-    purpose_table.setRowCount(0)
-    purpose_table.setRowCount(len(param_list))
-    row = 0
-
-    for par in param_list:
-        name_Item = QTableWidgetItem(par['name'])
-        name_Item.setFlags(name_Item.flags() & ~Qt.ItemIsEditable)
-        purpose_table.setItem(row, 0, name_Item)
-        if str(par['description']) != 'nan':
-            description = str(par['description'])
+def connect_vmu():
+    param_list = [[0x40, 0x18, 0x10, 0x02, 0x00, 0x00, 0x00, 0x00]]
+    check = marathon.can_request_many(rtcon_vmu, vmu_rtcon, param_list)
+    if not isinstance(check, list):
+        QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + check, QMessageBox.Ok)
+        return False
+    # pprint(check)
+    req_list =[]
+    for par in vmu_params_list:
+        address = par['address']
+        MSB = ((address & 0xFF0000) >> 16)
+        LSB = ((address & 0xFF00) >> 8)
+        sub_index = address & 0xFF
+        data = [0x40, LSB, MSB, sub_index, 0, 0, 0, 0]
+        req_list.append(data)
+    ans_list = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
+    for message in ans_list:
+        if isinstance(message, list):
+            for byte in message:
+                print(hex(byte), end=' ')
+            print()
+            value = (message[4] << 24) + \
+                    (message[5] << 16) + \
+                    (message[6] << 8) + \
+                    message[7]
+            print(value)
         else:
-            description = ''
-        description_Item = QTableWidgetItem(description)
-        purpose_table.setItem(row, 1, description_Item)
-
-        if str(par['unit']) != 'nan':
-            unit = str(par['unit'])
-        else:
-            unit = ''
-        unit_Item = QTableWidgetItem(unit)
-        unit_Item.setFlags(unit_Item.flags() & ~Qt.ItemIsEditable)
-        purpose_table.setItem(row, purpose_table.columnCount() - 1, unit_Item)
-
-        row += 1
-    purpose_table.resizeColumnsToContents()
-
-
-def get_vmu_param(index: int):
-    pass
-
+            print(message)
 
 def write_all_from_file_to_device():
     for i in range(window.params_table_2.rowCount()):
@@ -221,13 +219,16 @@ def show_empty_params_list(list_of_params: list, table: str):
         show_table.setItem(row, 1, description_Item)
 
         if str(par['address']) != 'nan':
+            if isinstance(par['address'], str):
+                if '0x' in par['address']:
+                    par['address'] = par['address'].rsplit('x')[1]
+                par['address'] = int(par['address'], 16)
             adr = hex(par['address'])
         else:
             adr = ''
         adr_Item = QTableWidgetItem(adr)
         adr_Item.setFlags(adr_Item.flags() & ~Qt.ItemIsEditable)
         show_table.setItem(row, 2, adr_Item)
-
 
         if str(par['unit']) != 'nan':
             unit = str(par['unit'])
@@ -248,7 +249,7 @@ def update_param():
             window.best_params()
         elif window.tab_burr.currentWidget() == window.editable_params:
             show_empty_params_list(editable_params_list, 'params_table_2')
-            show_value(2, editable_params_list, 'params_table_2')
+            show_value(3, editable_params_list, 'params_table_2')
             if compare_param_dict:
                 show_compare_list(compare_param_dict)
         elif window.tab_burr.currentWidget() == window.all_params:
@@ -505,7 +506,7 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
     def list_of_params_table(self, item):
         item = bookmark_dict[item.text()]
         show_empty_params_list(item, 'params_table')
-        show_value(2, item, 'params_table')
+        show_value(3, item, 'params_table')
 
     def save_item(self, item):
         table_param = QApplication.instance().sender()
@@ -559,6 +560,7 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
 app = QApplication([])
 window = ExampleApp()  # Создаём объект класса ExampleApp
 
+vmu_params_list = []
 excel_data_df = pandas.read_excel('C:\\Users\\timofey.inozemtsev\\PycharmProjects\\VMULogger\\table_for_params.xlsx')
 vmu_params_list = excel_data_df.to_dict(orient='records')
 
@@ -620,5 +622,6 @@ window.rb_little_endian.toggled.connect(window.set_byte_order)
 
 window.load_file_button.clicked.connect(make_compare_list)
 window.load_to_device_button.clicked.connect(write_all_from_file_to_device)
+window.connect_vmu_btn.clicked.connect(connect_vmu)
 window.show()  # Показываем окно
 app.exec_()  # и запускаем приложение
