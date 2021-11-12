@@ -45,7 +45,7 @@
        <enum>QTabWidget::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="VMU">
        <attribute name="title">
@@ -163,7 +163,7 @@
            </sizepolicy>
           </property>
           <property name="currentIndex">
-           <number>1</number>
+           <number>2</number>
           </property>
           <widget class="QWidget" name="all_params">
            <property name="sizePolicy">
@@ -436,7 +436,7 @@
              </widget>
             </item>
             <item row="1" column="0">
-             <widget class="QGroupBox" name="current_wheel">
+             <widget class="QGroupBox" name="set_current_wheel">
               <property name="enabled">
                <bool>false</bool>
               </property>
@@ -445,7 +445,7 @@
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_5">
                <item>
-                <widget class="QRadioButton" name="front_wheel">
+                <widget class="QRadioButton" name="set_front_wheel_rb">
                  <property name="text">
                   <string>Передняя</string>
                  </property>
@@ -455,7 +455,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QRadioButton" name="rear_wheel">
+                <widget class="QRadioButton" name="set_rear_wheel_rb">
                  <property name="text">
                   <string>Задняя</string>
                  </property>

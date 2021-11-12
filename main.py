@@ -248,8 +248,9 @@ def update_param():
         if window.tab_burr.currentWidget() == window.often_used_params:
             window.best_params()
         elif window.tab_burr.currentWidget() == window.editable_params:
-            show_empty_params_list(editable_params_list, 'params_table_2')
-            show_value(3, editable_params_list, 'params_table_2')
+            # я зачем-то раньше обновлял пустой список, сейчас это не нужно
+            # show_empty_params_list(editable_params_list, 'params_table_2')
+            show_value(window.value_col, editable_params_list, 'params_table_2')
             if compare_param_dict:
                 show_compare_list(compare_param_dict)
         elif window.tab_burr.currentWidget() == window.all_params:
@@ -398,7 +399,7 @@ def save_all_params():
 class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
     name_col = 0
     desc_col = 1
-    value_col = 2
+    value_col = 3
     combo_col = 999
     unit_col = 3
 
@@ -414,6 +415,7 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
                 current_wheel = Front_Wheel
                 set_param(35, 3)  # если ответа нет, то можно переименовывать в заднюю
                 current_wheel = Rear_Wheel
+                self.radioButton_2.setChecked(True)
             else:
                 current_wheel = Front_Wheel
                 QMessageBox.critical(window, "Ошибка ", "Уже есть один задний блок", QMessageBox.Ok)
@@ -424,6 +426,7 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
                 current_wheel = Rear_Wheel
                 set_param(35, 2)  # если ответа нет, то можно переименовывать в переднюю
                 current_wheel = Front_Wheel
+                self.radioButton_2.setChecked(True)
             else:
                 current_wheel = Rear_Wheel
                 QMessageBox.critical(window, "Ошибка ", "Уже есть один передний блок", QMessageBox.Ok)
@@ -478,16 +481,24 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
             errors_str = 'Нет ошибок '
         self.tb_errors.setText(errors_str)
 
+        self.set_front_wheel_rb.toggled.disconnect()
+        self.set_rear_wheel_rb.toggled.disconnect()
         if current_wheel == Front_Wheel:
             self.front_wheel.setChecked(True)
         elif current_wheel == Rear_Wheel:
             self.rear_wheel.setChecked(True)
+        self.set_front_wheel_rb.toggled.connect(self.set_current_wheel)
+        self.set_rear_wheel_rb.toggled.connect(self.set_current_wheel)
 
+        self.rb_big_endian.toggled.disconnect()
+        self.rb_little_endian.toggled.disconnect()
         byte_order = get_param(109)
         if byte_order == 0:
             self.rb_big_endian.setChecked(True)
         elif byte_order == 1:
             self.rb_little_endian.setChecked(True)
+        self.rb_big_endian.toggled.connect(self.set_byte_order)
+        self.rb_little_endian.toggled.connect(self.set_byte_order)
 
         for name, par in often_used_params.items():
             par['value'] = get_param(int(par['address']))
@@ -499,14 +510,16 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
                 else:
                     param = par['max'] * par['scale']
                 print(f'Param {name} is {param}')
+                slider.valueChanged.disconnect()
                 slider.setValue(param)
+                slider.valueChanged.connect(self.set_slider)
                 param = param / par['scale']
                 label.setText(str(param) + par['unit'])
 
     def list_of_params_table(self, item):
         item = bookmark_dict[item.text()]
         show_empty_params_list(item, 'params_table')
-        show_value(3, item, 'params_table')
+        show_value(self.value_col, item, 'params_table')
 
     def save_item(self, item):
         table_param = QApplication.instance().sender()
@@ -612,11 +625,14 @@ for name, par in often_used_params.items():
     slider.setTracking(False)
     slider.setValue(par['min'])
     slider.sliderMoved.connect(window.moved_slider)
-    slider.valueChanged.connect(window.set_slider)  # valueChanged
+    slider.valueChanged.connect(window.set_slider)
 
     label = getattr(window, 'lab_' + name)
     label.setText(str(par['min']) + par['unit'])
-# update_param()
+
+window.set_front_wheel_rb.toggled.connect(window.set_current_wheel)
+window.set_rear_wheel_rb.toggled.connect(window.set_current_wheel)
+
 window.rb_big_endian.toggled.connect(window.set_byte_order)
 window.rb_little_endian.toggled.connect(window.set_byte_order)
 
