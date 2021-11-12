@@ -430,11 +430,14 @@ class CANMarathon:
                 buffer.flags = 0
             # записываю данные
             j = 0
+            print('Отправляю сообщение на ' + hex(buffer.id))
+            print(hex(buffer.id), end='    ')
             for i in message:
-                print(i, end=' ')
+                print(hex(i), end=' ')
                 buffer.data[j] = ctypes.c_uint8(i)
                 j += 1
             buffer.len = len(message)
+            print()
             # отправляю запрос. В идеальном мире это должно получиться с первого раза
             # если не будет стабильно получаться, оставлю этот цикл
             # for i in range(self.max_iteration):
@@ -444,8 +447,8 @@ class CANMarathon:
                 print('CiTransmit do not work')
                 pprint(e)
                 exit()
-            else:
-                print('   в CiTransmit так ' + str(transmit_ok))
+            # else:
+                # print('   в CiTransmit так ' + str(transmit_ok))
             # это тоже часть цикла, если будет работать стабильно с первого раза это тоже удалить
             # if transmit_ok == 0:
             #     break
@@ -470,9 +473,8 @@ class CANMarathon:
                 print('msg_zero do not work')
                 pprint(e)
                 exit()
-            else:
-                print('    в msg_zero так ' + str(result))
-
+            # else:
+            #     print('    в msg_zero так ' + str(result))
             # кажется, цикл здесь нужен, если между запросом и ответом влезет сообщение с чужого ID
             # поэтому цикл пусть остается
             for itr_global in range(self.max_iteration):
@@ -487,8 +489,8 @@ class CANMarathon:
                     print('CiRcQueCancel do not work')
                     pprint(e)
                     exit()
-                else:
-                    print('     в CiRcQueCancel так ' + str(result))
+                # else:
+                #     print('     в CiRcQueCancel так ' + str(result))
                 # теперь самое интересное - ждём события когда появится новое сообщение в очереди
                 try:
                     result = self.lib.CiWaitEvent(ctypes.pointer(cw), 1, 1000)  # timeout = 1000 миллисекунд
@@ -496,8 +498,8 @@ class CANMarathon:
                     print('CiWaitEvent do not work')
                     pprint(e)
                     exit()
-                else:
-                    print('      в CiWaitEvent так ' + str(result))
+                # else:
+                #     print('      в CiWaitEvent так ' + str(result))
                 # и когда количество кадров в приемной очереди стало больше
                 # или равно значению порога - 1
                 if result > 0 and cw[0].wflags & 0x01:
@@ -509,8 +511,8 @@ class CANMarathon:
                         print('CiRead do not work')
                         pprint(e)
                         exit()
-                    else:
-                        print('       в CiRead так ' + str(result))
+                    # else:
+                    #     print('       в CiRead так ' + str(result))
                     # если удалось прочитать
                     if result >= 0:
                         # попался нужный ид
@@ -518,10 +520,10 @@ class CANMarathon:
                             # добавляю в список новую строку и прехожу к следующей итерации
                             # 1852257A
                             # print('Iteration = ' + str(itr_global))
-                            # print(hex(buffer.id), end='    ')
-                            # for i in range(buffer.len):
-                            #     print(hex(buffer.data[i]), end=' ')
-                            # print()
+                            print(hex(buffer.id), end='    ')
+                            for i in range(buffer.len):
+                                print(hex(buffer.data[i]), end=' ')
+                            print()
                             answer_list.append(buffer.data)
                             break
                         else:
@@ -547,6 +549,7 @@ class CANMarathon:
             exit()
         else:
             print('       в CiClose так ' + str(result))
+        print('Здесь должно быть 0х21  -  ' + hex(answer_list[2][1]))
         return answer_list
 
 

@@ -1,3 +1,13 @@
+"""
+Проблемы программы:
+- вылетает после установки часто используемых параметром, при этом сам параметр успевает изменить
+- очень долго сохраняет параметры из рейки в файл
+- не работает кнопка обновить когда уже подключено
+- не подключается когда подключили марафон или закрыли рткон или канвайс
+- нет индикации работы когда считывает параметры
+
+"""
+
 import datetime
 import sys
 from pprint import pprint
@@ -82,12 +92,13 @@ vmu_rtcon = 0x594
 
 def connect_vmu():
     param_list = [[0x40, 0x18, 0x10, 0x02, 0x00, 0x00, 0x00, 0x00]]
+    # Проверяю, есть ли подключение к кву
     check = marathon.can_request_many(rtcon_vmu, vmu_rtcon, param_list)
     if not isinstance(check, list):
         QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + check, QMessageBox.Ok)
         return False
-    # pprint(check)
-    req_list =[]
+    # заполняю дату с адресами параметров из списка, который задаётся в файле
+    req_list = []
     for par in vmu_params_list:
         address = par['address']
         MSB = ((address & 0xFF0000) >> 16)
@@ -95,33 +106,51 @@ def connect_vmu():
         sub_index = address & 0xFF
         data = [0x40, LSB, MSB, sub_index, 0, 0, 0, 0]
         req_list.append(data)
+    # запрашиваю список полученных ответов
     ans_list = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
+    # отображаю сообщения из списка
+    print('Здесь должно быть 0х21  -  ' + hex(ans_list[2][1]))
+
+    row = 0
     for message in ans_list:
-        if isinstance(message, list):
+        if not isinstance(message, str):
             for byte in message:
                 print(hex(byte), end=' ')
             print()
             value = (message[4] << 24) + \
                     (message[5] << 16) + \
-                    (message[6] << 8) + \
-                    message[7]
-            print(value)
+                    (message[6] << 8) + message[7]
         else:
-            print(message)
+            value = message
+        # отображаю параметры в таблице
+        value_Item = QTableWidgetItem(str(value))
+        window.vmu_param_table.setItem(row, window.value_col, value_Item)
+        row += 1
+
 
 def write_all_from_file_to_device():
-    for i in range(window.params_table_2.rowCount()):
-        param_from_device = window.params_table_2.item(i, 2)
-        param_from_file = window.params_table_2.item(i, 3)
-        if param_from_device != param_from_file:
-            window.params_table_2.setItem(i, 2, param_from_file)
+    if get_param(42):  # проверка что есть связь с блоком
+        window.params_table_2.itemChanged.disconnect()
+        for i in range(window.params_table_2.rowCount()):
+            param_from_device = window.params_table_2.item(i, window.value_col)
+            param_from_file = window.params_table_2.item(i, window.value_col + 1)
+            if param_from_device:
+                if param_from_device.text() == param_from_file.text():
+                    break
+            value_Item = QTableWidgetItem(param_from_file.text())
+            param_from_file.setBackground(QColor('white'))
+            window.params_table_2.setItem(i, window.value_col, value_Item)
+            window.params_table_2.setItem(i, window.value_col + 1, param_from_file)
+            address = get_address(window.params_table_2.item(i, 0))
+            set_param(address, int(param_from_file.text()))
+        window.params_table_2.itemChanged.connect(window.save_item)
 
 
 def show_compare_list(compare_param_dict: dict):
     window.params_table_2.itemChanged.disconnect()
     for i in range(window.params_table_2.rowCount()):
         param_name = window.params_table_2.item(i, 0).text()
-        param_from_device = window.params_table_2.item(i, 2)
+        param_from_device = window.params_table_2.item(i, window.value_col)
         if param_from_device:
             param_from_device = param_from_device.text()
         else:
@@ -132,8 +161,8 @@ def show_compare_list(compare_param_dict: dict):
         if param_from_device != param_from_file:
             value_Item.setBackground(QColor('red'))
 
-        window.params_table_2.setItem(i, 3, value_Item)
-        window.params_table_2.itemChanged.connect(window.save_item)
+        window.params_table_2.setItem(i, window.value_col + 1, value_Item)
+    window.params_table_2.itemChanged.connect(window.save_item)
 
 
 def make_compare_list():
@@ -261,7 +290,7 @@ def update_param():
         font.setBold(False)
         window.pushButton_2.setFont(font)
         window.groupBox_4.setEnabled(True)
-        window.current_wheel.setEnabled(True)
+        window.set_current_wheel.setEnabled(True)
         window.byte_order.setEnabled(True)
     else:
         window.pushButton_2.setText('Подключиться')
@@ -269,7 +298,7 @@ def update_param():
         font.setBold(True)
         window.pushButton_2.setFont(font)
         window.groupBox_4.setEnabled(False)
-        window.current_wheel.setEnabled(False)
+        window.set_current_wheel.setEnabled(False)
         window.byte_order.setEnabled(False)
 
 
@@ -407,7 +436,7 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
         super().__init__()
         self.setupUi(self)  # Это нужно для инициализации нашего дизайна
 
-    def set_current_wheel(self, item):
+    def setting_current_wheel(self, item):
         global current_wheel
         if current_wheel == Front_Wheel:
             current_wheel = Rear_Wheel
@@ -484,11 +513,11 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
         self.set_front_wheel_rb.toggled.disconnect()
         self.set_rear_wheel_rb.toggled.disconnect()
         if current_wheel == Front_Wheel:
-            self.front_wheel.setChecked(True)
+            self.set_front_wheel_rb.setChecked(True)
         elif current_wheel == Rear_Wheel:
-            self.rear_wheel.setChecked(True)
-        self.set_front_wheel_rb.toggled.connect(self.set_current_wheel)
-        self.set_rear_wheel_rb.toggled.connect(self.set_current_wheel)
+            self.set_rear_wheel_rb.setChecked(True)
+        self.set_front_wheel_rb.toggled.connect(self.setting_current_wheel)
+        self.set_rear_wheel_rb.toggled.connect(self.setting_current_wheel)
 
         self.rb_big_endian.toggled.disconnect()
         self.rb_little_endian.toggled.disconnect()
@@ -613,6 +642,7 @@ window.list_bookmark.setCurrentRow(0)
 show_empty_params_list(bookmark_dict[window.list_bookmark.currentItem().text()], 'params_table')
 show_empty_params_list(editable_params_list, 'params_table_2')
 show_empty_params_list(vmu_params_list, 'vmu_param_table')
+window.vmu_param_table.itemChanged.disconnect()
 
 window.list_bookmark.itemClicked.connect(window.list_of_params_table)
 window.params_table.resizeColumnsToContents()
@@ -630,8 +660,8 @@ for name, par in often_used_params.items():
     label = getattr(window, 'lab_' + name)
     label.setText(str(par['min']) + par['unit'])
 
-window.set_front_wheel_rb.toggled.connect(window.set_current_wheel)
-window.set_rear_wheel_rb.toggled.connect(window.set_current_wheel)
+window.set_front_wheel_rb.toggled.connect(window.setting_current_wheel)
+window.set_rear_wheel_rb.toggled.connect(window.setting_current_wheel)
 
 window.rb_big_endian.toggled.connect(window.set_byte_order)
 window.rb_little_endian.toggled.connect(window.set_byte_order)
