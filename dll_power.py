@@ -232,22 +232,28 @@ class CANMarathon:
             return str(ret)
 
     def can_write(self, can_id: int, message: list):
+        c_open = self.canal_open()
+        if c_open:
+            return c_open
+
         buffer = self.Buffer()
+
         buffer.id = ctypes.c_uint32(can_id)
+
         j = 0
         for i in message:
             buffer.data[j] = ctypes.c_uint8(i)
             j += 1
+
         buffer.len = len(message)
+
         if can_id > 0xFFF:
             buffer.flags = 2
+            self.lib.msg_seteff(ctypes.pointer(buffer))
         else:
             buffer.flags = 0
-        self.lib.CiTransmit.argtypes = [ctypes.c_int8, ctypes.POINTER(self.Buffer)]
 
-        c_open = self.canal_open()
-        if c_open:
-            return c_open
+        self.lib.CiTransmit.argtypes = [ctypes.c_int8, ctypes.POINTER(self.Buffer)]
 
         for i in range(self.max_iteration):
             try:
@@ -260,6 +266,8 @@ class CANMarathon:
             else:
                 print('   в CiTransmit так ' + str(transmit_ok))
             if transmit_ok == 0:
+                self.lib.CiStop(self.can_canal_number)
+                self.lib.CiClose(self.can_canal_number)
                 return ''
         self.lib.CiStop(self.can_canal_number)
         self.lib.CiClose(self.can_canal_number)
@@ -420,6 +428,7 @@ class CANMarathon:
         # предполагается, что в messages будут список сообщений по 8 байт для запроса по ID can_id_req
         # поэтому нужно пройти по списку
         for message in messages:
+            err = ''
             # из-за того, что буфер каждый раз обнуляю, надо заново записывать в него ИД и флаг сообщения
             buffer.id = ctypes.c_uint32(can_id_req)
             # если ID длинный, значит это Extended протокол
@@ -518,20 +527,19 @@ class CANMarathon:
                         # попался нужный ид
                         if can_id_ans == buffer.id:
                             # добавляю в список новую строку и прехожу к следующей итерации
-                            # 1852257A
-                            # print('Iteration = ' + str(itr_global))
-                            print(hex(buffer.id), end='    ')
+                            byte_list = []
                             for i in range(buffer.len):
-                                print(hex(buffer.data[i]), end=' ')
-                            print()
-                            answer_list.append(buffer.data)
+                                byte_list.append(buffer.data[i])
+                            answer_list.append(byte_list)
+                            err = ''
                             break
                         else:
-                            answer_list.append('Не тот ИД ' + str(result))
+                            err = 'Не тот ИД ' + str(result)
                     else:
-                        answer_list.append('Ошибка при чтении с буфера канала ' + str(result))
+                        err = 'Ошибка при чтении с буфера канала ' + str(result)
                 else:
-                    answer_list.append('Нет нового сообщения в КАНе' + str(result))
+                    err = 'Нет нового сообщения в КАНе' + str(result)
+            if err: answer_list.append(err)
         # закрываю канал и останавливаю Марафон
         try:
             result = self.lib.CiStop(self.can_canal_number)
@@ -549,7 +557,6 @@ class CANMarathon:
             exit()
         else:
             print('       в CiClose так ' + str(result))
-        print('Здесь должно быть 0х21  -  ' + hex(answer_list[2][1]))
         return answer_list
 
 

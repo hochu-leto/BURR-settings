@@ -109,14 +109,9 @@ def connect_vmu():
     # запрашиваю список полученных ответов
     ans_list = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
     # отображаю сообщения из списка
-    print('Здесь должно быть 0х21  -  ' + hex(ans_list[2][1]))
-
     row = 0
     for message in ans_list:
         if not isinstance(message, str):
-            for byte in message:
-                print(hex(byte), end=' ')
-            print()
             value = (message[4] << 24) + \
                     (message[5] << 16) + \
                     (message[6] << 8) + message[7]
@@ -197,7 +192,7 @@ def show_value(col_value: int, list_of_params: list, table: str):
     row = 0
 
     for par in list_of_params:
-        if str(par['value']) == 'nan':
+        if (not par['value']) or (str(par['value']) == 'nan'):
             value = get_param(int(par['address']))
             par['value'] = value
         else:
