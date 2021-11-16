@@ -12,7 +12,7 @@ import datetime
 import sys
 from pprint import pprint
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, pyqtSlot
 from PyQt5.QtGui import QColor
 
 sys.path.insert(1, 'C:\\Users\\timofey.inozemtsev\\PycharmProjects\\dll_power')
@@ -78,16 +78,40 @@ errors_list = {0x1: 'авария модуля',
                0x80: 'неправильная полярность DC-мотора',
                }
 
-rb_param_list = {'current_wheel': {'scale': 'nan',
-                                   'value': 0,
-                                   'address': 35},
-                 'byte_order': {'scale': 'nan',
-                                'value': 0,
-                                'address': 109},
-                 }
+rb_param_list = {
+    'current_wheel': {'scale': 'nan',
+                      'value': 0,
+                      'address': 35},
+    'byte_order': {'scale': 'nan',
+                   'value': 0,
+                   'address': 109},
+}
 compare_param_dict = {}
 rtcon_vmu = 0x1850460E
 vmu_rtcon = 0x594
+
+
+def start_btn_pressed():
+    if not window.browserHandler.running:
+        window.thread.start()
+        window.browserHandler.running = True
+        window.start_btn.setText('Стоп')
+    else:
+        window.thread.terminate()
+        window.browserHandler.running = False
+        window.start_btn.setText('Старт')
+
+
+def feel_req_list(p_list: list):
+    req_list = []
+    for par in p_list:
+        address = par['address']
+        MSB = ((address & 0xFF0000) >> 16)
+        LSB = ((address & 0xFF00) >> 8)
+        sub_index = address & 0xFF
+        data = [0x40, LSB, MSB, sub_index, 0, 0, 0, 0]
+        req_list.append(data)
+    return req_list
 
 
 def connect_vmu():
@@ -98,29 +122,22 @@ def connect_vmu():
         QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + check, QMessageBox.Ok)
         return False
     # заполняю дату с адресами параметров из списка, который задаётся в файле
-    req_list = []
-    for par in vmu_params_list:
-        address = par['address']
-        MSB = ((address & 0xFF0000) >> 16)
-        LSB = ((address & 0xFF00) >> 8)
-        sub_index = address & 0xFF
-        data = [0x40, LSB, MSB, sub_index, 0, 0, 0, 0]
-        req_list.append(data)
+    req_list = feel_req_list(vmu_params_list)
     # запрашиваю список полученных ответов
     ans_list = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
     # отображаю сообщения из списка
-    row = 0
-    for message in ans_list:
+    i = 0
+    for par in vmu_params_list:
+        message = ans_list[i]
         if not isinstance(message, str):
-            value = (message[4] << 24) + \
-                    (message[5] << 16) + \
-                    (message[6] << 8) + message[7]
-        else:
-            value = message
-        # отображаю параметры в таблице
-        value_Item = QTableWidgetItem(str(value))
-        window.vmu_param_table.setItem(row, window.value_col, value_Item)
-        row += 1
+            value = (message[7] << 24) + \
+                    (message[6] << 16) + \
+                    (message[5] << 8) + message[4]
+            par['value'] = (value / par['scale']) - par['scaleB']
+
+        value_Item = QTableWidgetItem(str(par['value']))
+        window.vmu_param_table.setItem(i, window.value_col, value_Item)
+        i += 1
 
 
 def write_all_from_file_to_device():
@@ -197,27 +214,27 @@ def show_value(col_value: int, list_of_params: list, table: str):
             par['value'] = value
         else:
             value = par['value']
+        print(value)
+        # if wr_err:
+        #     #  надо выкидывать предупреждение, что адаптер не обнаружен
+        #     # QMessageBox.critical(window, "Ошибка ", "Кажется, адаптер не подключен", QMessageBox.Ok)
+        #     print(wr_err)
+        #     wr_err = ''
+        #     break
+        # else:
+        value_Item = QTableWidgetItem(str(value))
 
-        if wr_err:
-            #  надо выкидывать предупреждение, что адаптер не обнаружен
-            # QMessageBox.critical(window, "Ошибка ", "Кажется, адаптер не подключен", QMessageBox.Ok)
-            print(wr_err)
-            wr_err = ''
-            break
+        if str(par['editable']) != 'nan':
+            value_Item.setFlags(value_Item.flags() | Qt.ItemIsEditable)
+            value_Item.setBackground(QColor('#D7FBFF'))
         else:
-            value_Item = QTableWidgetItem(str(value))
+            value_Item.setFlags(value_Item.flags() & ~Qt.ItemIsEditable)
 
-            if str(par['editable']) != 'nan':
-                value_Item.setFlags(value_Item.flags() | Qt.ItemIsEditable)
-                value_Item.setBackground(QColor('#D7FBFF'))
-            else:
-                value_Item.setFlags(value_Item.flags() & ~Qt.ItemIsEditable)
+        if str(par['strings']) != 'nan':
+            value_Item.setStatusTip(str(par['strings']))
+            value_Item.setToolTip(str(par['strings']))
 
-            if str(par['strings']) != 'nan':
-                value_Item.setStatusTip(str(par['strings']))
-                value_Item.setToolTip(str(par['strings']))
-
-            show_table.setItem(row, col_value, value_Item)
+        show_table.setItem(row, col_value, value_Item)
 
         row += 1
     show_table.resizeColumnsToContents()
@@ -420,6 +437,29 @@ def save_all_params():
     return False
 
 
+# Объект, который будет перенесён в другой поток для выполнения кода
+class BrowserHandler(QObject):
+    running = False
+    newTextAndColor = pyqtSignal(str, object)
+
+    # метод, который будет выполнять алгоритм в другом потоке
+    def run(self):
+        while True:
+            # посылаем сигнал из второго потока в GUI поток
+            self.newTextAndColor.emit(
+                ' thread 2 variant 1.\n',
+                QColor(0, 0, 255)
+            )
+            QThread.msleep(1000)
+
+            # посылаем сигнал из второго потока в GUI поток
+            self.newTextAndColor.emit(
+                '- thread 2 variant 2.\n',
+                QColor(255, 0, 0)
+            )
+            QThread.msleep(1000)
+
+
 class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
     name_col = 0
     desc_col = 1
@@ -430,6 +470,26 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)  # Это нужно для инициализации нашего дизайна
+    '''
+        баловство это всё
+        # создадим поток
+        self.thread = QThread()
+        # создадим объект для выполнения кода в другом потоке
+        self.browserHandler = BrowserHandler()
+        # перенесём объект в другой поток
+        self.browserHandler.moveToThread(self.thread)
+        # после чего подключим все сигналы и слоты
+        self.browserHandler.newTextAndColor.connect(self.addNewTextAndColor)
+        # подключим сигнал старта потока к методу run у объекта, который должен выполнять код в другом потоке
+        self.thread.started.connect(self.browserHandler.run)
+        # запустим поток
+        # self.thread.start()
+
+    @pyqtSlot(str, object)
+    def addNewTextAndColor(self, string, color):
+        self.textBrowser.setTextColor(color)
+        self.textBrowser.append(string)
+    '''
 
     def setting_current_wheel(self, item):
         global current_wheel
@@ -600,7 +660,11 @@ window = ExampleApp()  # Создаём объект класса ExampleApp
 vmu_params_list = []
 excel_data_df = pandas.read_excel('C:\\Users\\timofey.inozemtsev\\PycharmProjects\\VMULogger\\table_for_params.xlsx')
 vmu_params_list = excel_data_df.to_dict(orient='records')
-
+for par in vmu_params_list:
+    if str(par['scale']) == 'nan':
+        par['scale'] = 1
+    if str(par['scaleB']) == 'nan':
+        par['scaleB'] = 0
 excel_data_df = pandas.read_excel('C:\\Users\\timofey.inozemtsev\\PycharmProjects\\VMULogger'
                                   '\\burr_30_forw_v31_27072021.xls')
 params_list = excel_data_df.to_dict(orient='records')
@@ -664,5 +728,6 @@ window.rb_little_endian.toggled.connect(window.set_byte_order)
 window.load_file_button.clicked.connect(make_compare_list)
 window.load_to_device_button.clicked.connect(write_all_from_file_to_device)
 window.connect_vmu_btn.clicked.connect(connect_vmu)
+window.start_btn.clicked.connect(start_btn_pressed)
 window.show()  # Показываем окно
 app.exec_()  # и запускаем приложение

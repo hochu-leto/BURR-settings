@@ -45,7 +45,7 @@
        <enum>QTabWidget::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="VMU">
        <attribute name="title">
@@ -55,7 +55,7 @@
         <item>
          <widget class="QTabWidget" name="VMU_params_tab">
           <property name="currentIndex">
-           <number>0</number>
+           <number>1</number>
           </property>
           <widget class="QWidget" name="often_used">
            <attribute name="title">
@@ -64,6 +64,9 @@
            <layout class="QHBoxLayout" name="horizontalLayout_10">
             <item>
              <widget class="QTableWidget" name="vmu_param_table">
+              <property name="sizeAdjustPolicy">
+               <enum>QAbstractScrollArea::AdjustToContents</enum>
+              </property>
               <column>
                <property name="text">
                 <string>Параметр</string>
@@ -144,6 +147,29 @@
            <attribute name="title">
             <string>pass</string>
            </attribute>
+           <widget class="QTextBrowser" name="textBrowser">
+            <property name="geometry">
+             <rect>
+              <x>10</x>
+              <y>10</y>
+              <width>256</width>
+              <height>192</height>
+             </rect>
+            </property>
+           </widget>
+           <widget class="QPushButton" name="start_btn">
+            <property name="geometry">
+             <rect>
+              <x>280</x>
+              <y>10</y>
+              <width>56</width>
+              <height>17</height>
+             </rect>
+            </property>
+            <property name="text">
+             <string>Старт</string>
+            </property>
+           </widget>
           </widget>
          </widget>
         </item>
@@ -163,7 +189,7 @@
            </sizepolicy>
           </property>
           <property name="currentIndex">
-           <number>2</number>
+           <number>0</number>
           </property>
           <widget class="QWidget" name="all_params">
            <property name="sizePolicy">
@@ -177,7 +203,7 @@
            </attribute>
            <layout class="QHBoxLayout" name="horizontalLayout_3">
             <item>
-             <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,4">
+             <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,4,0">
               <item>
                <widget class="QListWidget" name="list_bookmark"/>
               </item>
@@ -261,6 +287,19 @@
                 </column>
                </widget>
               </item>
+              <item>
+               <spacer name="horizontalSpacer_4">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
              </layout>
             </item>
            </layout>
@@ -271,7 +310,7 @@
            </attribute>
            <layout class="QHBoxLayout" name="horizontalLayout_5">
             <item>
-             <layout class="QVBoxLayout" name="verticalLayout_8" stretch="0,10">
+             <layout class="QVBoxLayout" name="verticalLayout_8" stretch="0,1">
               <item>
                <layout class="QHBoxLayout" name="horizontalLayout_4">
                 <item>
@@ -398,6 +437,22 @@
                </widget>
               </item>
              </layout>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer_3">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Ignored</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
             </item>
            </layout>
           </widget>

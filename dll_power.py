@@ -20,20 +20,20 @@ from ctypes import *
 # define ECITOUT    13           /* time out occured */
 
 error_codes = {
-    -1: 'generic (not specified) error',
-    -2: 'device or resourse busy',
-    -3: 'memory fault',
-    -4: "function can't be called for chip in current state",
-    -5: "invalid call, function can't be called for this object",
-    -6: 'invalid parameter',
-    -7: 'can not access resource',
-    -8: 'function or feature not implemented',
-    -9: 'input/output error',
-    -10: 'no such device or object',
-    -11: 'call was interrupted by event',
-    -12: 'no resources',
-    -13: 'time out occured',
-    65526: 'Адаптер не подключен'
+    65535-1: 'generic (not specified) error',
+    65535-2: 'device or resourse busy',
+    65535-3: 'memory fault',
+    65535-4: "function can't be called for chip in current state",
+    65535-5: "invalid call, function can't be called for this object",
+    65535-6: 'invalid parameter',
+    65535-7: 'can not access resource',
+    65535-8: 'function or feature not implemented',
+    65535-9: 'input/output error',
+    65535-10: 'no such device or object',
+    65535-11: 'call was interrupted by event',
+    65535-12: 'no resources',
+    65535-13: 'time out occured',
+    65426: 'Адаптер не подключен'   # 65526
 }
 
 from pprint import pprint
