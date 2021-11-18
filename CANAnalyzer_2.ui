@@ -55,7 +55,7 @@
         <item>
          <widget class="QTabWidget" name="VMU_params_tab">
           <property name="currentIndex">
-           <number>1</number>
+           <number>0</number>
           </property>
           <widget class="QWidget" name="often_used">
            <attribute name="title">
@@ -110,7 +110,7 @@
                </widget>
               </item>
               <item>
-               <widget class="QCheckBox" name="checkBox">
+               <widget class="QCheckBox" name="constantly_req_vmu_params">
                 <property name="enabled">
                  <bool>false</bool>
                 </property>
@@ -121,6 +121,9 @@
               </item>
               <item>
                <widget class="QPushButton" name="start_record">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
                 <property name="text">
                  <string>Запись</string>
                 </property>
