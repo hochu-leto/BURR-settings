@@ -15,7 +15,6 @@ from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, pyqtSlot
 from PyQt5.QtGui import QColor
 
 sys.path.insert(1, 'C:\\Users\\timofey.inozemtsev\\PycharmProjects\\dll_power')
-# C:\Users\timofey.inozemtsev\PycharmProjects\VMULogger\dll_power
 from dll_power import CANMarathon
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtWidgets import QTableWidgetItem, QApplication, QMessageBox, QFileDialog
@@ -91,12 +90,24 @@ vmu_rtcon = 0x594
 
 
 def const_req_vmu_params():
-    pass
+    if not window.vmu_req_thread.running:
+        window.vmu_req_thread.running = True
+        window.thread_to_record.start()
+    else:
+        window.vmu_req_thread.running = False
+        window.thread_to_record.terminate()
 
 
 def start_btn_pressed():
-    if not window.vmu_req_thread.running:
-        recording_file_name = 'vmu_record_' + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + '.csv'
+    if not window.record_vmu_params:
+        window.constantly_req_vmu_params.setChecked(True)
+        window.constantly_req_vmu_params.setEnabled(False)
+        window.connect_vmu_btn.setEnabled(False)
+
+        window.record_vmu_params = True
+        window.start_record.setText('Стоп')
+        window.vmu_req_thread.recording_file_name = 'vmu_record_' + \
+                                                    datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + '.csv'
         i = 0
         column = []
         data = []
@@ -107,17 +118,17 @@ def start_btn_pressed():
             i += 1
         data.append(data_string)
         df = pandas.DataFrame(data, columns=column)
-        df.to_csv(recording_file_name, mode='w', index=False, encoding='utf8')
-        window.thread_to_record.start()
-
-        window.vmu_req_thread.running = True
-        window.start_record.setText('Стоп')
-        window.constantly_req_vmu_params.setChecked(True)
+        df.to_csv(window.vmu_req_thread.recording_file_name,
+                  mode='w',
+                  header=False,
+                  index=False,
+                  encoding='windows-1251')
     else:
-        window.thread_to_record.terminate()
-        window.vmu_req_thread.running = False
+        window.record_vmu_params = False
         window.start_record.setText('Запись')
         window.constantly_req_vmu_params.setChecked(False)
+        window.constantly_req_vmu_params.setEnabled(True)
+        window.connect_vmu_btn.setEnabled(False)
 
 
 def feel_req_list(p_list: list):
@@ -136,12 +147,15 @@ def connect_vmu():
     param_list = [[0x40, 0x18, 0x10, 0x02, 0x00, 0x00, 0x00, 0x00]]
     # Проверяю, есть ли подключение к кву
     check = marathon.can_request_many(rtcon_vmu, vmu_rtcon, param_list)
-    if not isinstance(check, list):
+    if isinstance(check, list):
+        check = check[0]
+    if isinstance(check, str):
         QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + check, QMessageBox.Ok)
         window.connect_vmu_btn.setText('Подключиться')
         window.constantly_req_vmu_params.setEnabled(False)
         window.start_record.setEnabled(False)
         return False
+
     # запрашиваю список полученных ответов
     ans_list = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
     fill_vmu_params_values(ans_list)
@@ -417,6 +431,7 @@ def set_param(address: int, value: int):
 
 def get_param(address):
     global wr_err
+    data = 'OK'
     wr_err = marathon.check_connection()
     if wr_err:
         QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + wr_err, QMessageBox.Ok)
@@ -478,25 +493,39 @@ def save_all_params():
 class VMUSaveToFileThread(QObject):
     running = False
     new_vmu_params = pyqtSignal(list)
+    recording_file_name = 'vmu_record_' + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + '.csv'
 
     # метод, который будет выполнять алгоритм в другом потоке
     def run(self):
         print('Запускаем параллельный поток для опроса кву')
         while True:
-            # посылаем сигнал из второго потока в GUI поток
-            columns = []
-            data = []
-            data_string = []
-            for par in vmu_params_list:
-                columns.append(par['name'])
-                data_string.append(par['value'])
-            data.append(data_string)
-            df = pandas.DataFrame(columns=columns) # data,
-            df.to_csv(recording_file_name, mode='a', index=False, header=False, encoding='utf8')  # header=False,
-            print('Файл обновлён. Но это неточно')
+            if window.record_vmu_params:
+                columns = []
+                data = []
+                data_string = []
+                for par in vmu_params_list:
+                    columns.append(par['name'])
+                    data_string.append(par['value'])
+                data.append(data_string)
+                df = pandas.DataFrame(data, columns=columns)
+                df.to_csv(self.recording_file_name, mode='a', index=False, header=False, encoding='windows-1251')
+                # print('Файл обновлён. Но это неточно')
             #  Получаю новые параметры от КВУ
             ans_list = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
             #  И отправляю их в основной поток для обновления vmu_param_list  - здесь может быть ошибка
+            if isinstance(ans_list, list):
+                ans_list = ans_list[0]
+            if isinstance(ans_list, str):
+                QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + ans_list, QMessageBox.Ok)
+                window.connect_vmu_btn.setText('Подключиться')
+                window.start_record.setText('Запись')
+                window.start_record.setEnabled(False)
+                window.constantly_req_vmu_params.setChecked(False)
+                window.constantly_req_vmu_params.setEnabled(False)
+                window.record_vmu_params = False
+                self.running = False
+                # window.thread_to_record.terminate()
+
             self.new_vmu_params.emit(ans_list)
             QThread.msleep(1000)
 
@@ -507,6 +536,7 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
     value_col = 3
     combo_col = 999
     unit_col = 3
+    record_vmu_params = False
 
     def __init__(self):
         """
@@ -610,7 +640,6 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
 
     def set_slider(self, item):
         slider = QApplication.instance().sender()
-        print(slider.SliderAction())
         param = slider.objectName()
         item = slider.value()
         value = item / often_used_params[param]['scale']
@@ -747,7 +776,6 @@ for par in vmu_params_list:
             par['address'] = int(par['address'], 16)
 # заполняю дату с адресами параметров из списка, который задаётся в файле
 req_list = feel_req_list(vmu_params_list)
-recording_file_name = 'vmu_record_' + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + '.csv'
 
 excel_data_df = pandas.read_excel('C:\\Users\\timofey.inozemtsev\\PycharmProjects\\VMULogger'
                                   '\\burr_30_forw_v31_27072021.xls')
@@ -813,5 +841,7 @@ window.load_file_button.clicked.connect(make_compare_list)
 window.load_to_device_button.clicked.connect(write_all_from_file_to_device)
 window.connect_vmu_btn.clicked.connect(connect_vmu)
 window.start_record.clicked.connect(start_btn_pressed)
+window.constantly_req_vmu_params.toggled.connect(const_req_vmu_params)
+
 window.show()  # Показываем окно
 app.exec_()  # и запускаем приложение

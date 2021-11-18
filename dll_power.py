@@ -20,20 +20,20 @@ from ctypes import *
 # define ECITOUT    13           /* time out occured */
 
 error_codes = {
-    65535-1: 'generic (not specified) error',
-    65535-2: 'device or resourse busy',
-    65535-3: 'memory fault',
-    65535-4: "function can't be called for chip in current state",
-    65535-5: "invalid call, function can't be called for this object",
-    65535-6: 'invalid parameter',
-    65535-7: 'can not access resource',
-    65535-8: 'function or feature not implemented',
-    65535-9: 'input/output error',
-    65535-10: 'no such device or object',
-    65535-11: 'call was interrupted by event',
-    65535-12: 'no resources',
-    65535-13: 'time out occured',
-    65426: 'Адаптер не подключен'   # 65526
+    65535 - 1: 'generic (not specified) error',
+    65535 - 2: 'device or recourse busy',
+    65535 - 3: 'memory fault',
+    65535 - 4: "function can't be called for chip in current state",
+    65535 - 5: "invalid call, function can't be called for this object",
+    65535 - 6: 'invalid parameter',
+    65535 - 7: 'can not access resource',
+    65535 - 8: 'function or feature not implemented',
+    65535 - 9: 'Адаптер не подключен',  # input/output error
+    65535 - 10: 'no such device or object',
+    65535 - 11: 'call was interrupted by event',
+    65535 - 12: 'no resources',
+    65535 - 13: 'time out occured',
+    65426: 'Адаптер не подключен'  # 65526
 }
 
 from pprint import pprint
@@ -439,14 +439,14 @@ class CANMarathon:
                 buffer.flags = 0
             # записываю данные
             j = 0
-            print('Отправляю сообщение на ' + hex(buffer.id))
-            print(hex(buffer.id), end='    ')
+            # print('Отправляю сообщение на ' + hex(buffer.id))
+            # print(hex(buffer.id), end='    ')
             for i in message:
-                print(hex(i), end=' ')
+                # print(hex(i), end=' ')
                 buffer.data[j] = ctypes.c_uint8(i)
                 j += 1
             buffer.len = len(message)
-            print()
+            # print()
             # отправляю запрос. В идеальном мире это должно получиться с первого раза
             # если не будет стабильно получаться, оставлю этот цикл
             # for i in range(self.max_iteration):
@@ -457,7 +457,7 @@ class CANMarathon:
                 pprint(e)
                 exit()
             # else:
-                # print('   в CiTransmit так ' + str(transmit_ok))
+            # print('   в CiTransmit так ' + str(transmit_ok))
             # это тоже часть цикла, если будет работать стабильно с первого раза это тоже удалить
             # if transmit_ok == 0:
             #     break
@@ -515,7 +515,7 @@ class CANMarathon:
                     # и тогда читаем этот кадр из очереди
                     try:
                         result = self.lib.CiRead(self.can_canal_number, ctypes.pointer(buffer), 1)
-                        print('Принято сообщение с ID  ' + hex(buffer.id))
+                        # print('Принято сообщение с ID  ' + hex(buffer.id))
                     except Exception as e:
                         print('CiRead do not work')
                         pprint(e)
@@ -534,12 +534,13 @@ class CANMarathon:
                             err = ''
                             break
                         else:
-                            err = 'Не тот ИД ' + str(result)
+                            err = 'Нет ответа от блока управления'
                     else:
                         err = 'Ошибка при чтении с буфера канала ' + str(result)
                 else:
-                    err = 'Нет нового сообщения в КАНе' + str(result)
-            if err: answer_list.append(err)
+                    err = 'Нет подключения к CAN шине '
+            if err:
+                answer_list.append(err)
         # закрываю канал и останавливаю Марафон
         try:
             result = self.lib.CiStop(self.can_canal_number)
