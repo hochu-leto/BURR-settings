@@ -54,6 +54,12 @@
        <layout class="QVBoxLayout" name="verticalLayout_9">
         <item>
          <widget class="QTabWidget" name="VMU_params_tab">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>1</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="currentIndex">
            <number>0</number>
           </property>
@@ -63,84 +69,131 @@
            </attribute>
            <layout class="QHBoxLayout" name="horizontalLayout_10">
             <item>
-             <widget class="QTableWidget" name="vmu_param_table">
-              <property name="sizeAdjustPolicy">
-               <enum>QAbstractScrollArea::AdjustToContents</enum>
+             <layout class="QHBoxLayout" name="horizontalLayout_11" stretch="1,0">
+              <property name="sizeConstraint">
+               <enum>QLayout::SetMaximumSize</enum>
               </property>
-              <column>
-               <property name="text">
-                <string>Параметр</string>
-               </property>
-              </column>
-              <column>
-               <property name="text">
-                <string>Описание</string>
-               </property>
-              </column>
-              <column>
-               <property name="text">
-                <string>Адрес</string>
-               </property>
-              </column>
-              <column>
-               <property name="text">
-                <string>Значение</string>
-               </property>
-              </column>
-              <column>
-               <property name="text">
-                <string>Размерность</string>
-               </property>
-              </column>
-             </widget>
-            </item>
-            <item>
-             <layout class="QVBoxLayout" name="verticalLayout_10">
               <item>
-               <widget class="QPushButton" name="connect_vmu_btn">
-                <property name="font">
-                 <font>
-                  <weight>75</weight>
-                  <bold>true</bold>
-                 </font>
+               <widget class="QTableWidget" name="vmu_param_table">
+                <property name="sizeAdjustPolicy">
+                 <enum>QAbstractScrollArea::AdjustToContents</enum>
                 </property>
-                <property name="text">
-                 <string>Подключиться</string>
-                </property>
+                <column>
+                 <property name="text">
+                  <string>Параметр</string>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Описание</string>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Адрес</string>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Значение</string>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Размерность</string>
+                 </property>
+                </column>
                </widget>
               </item>
               <item>
-               <widget class="QCheckBox" name="constantly_req_vmu_params">
-                <property name="enabled">
-                 <bool>false</bool>
+               <layout class="QVBoxLayout" name="verticalLayout_10">
+                <property name="sizeConstraint">
+                 <enum>QLayout::SetMinimumSize</enum>
                 </property>
-                <property name="text">
-                 <string>Постоянно</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="start_record">
-                <property name="enabled">
-                 <bool>false</bool>
-                </property>
-                <property name="text">
-                 <string>Запись</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <spacer name="verticalSpacer_3">
-                <property name="orientation">
-                 <enum>Qt::Vertical</enum>
-                </property>
-                <property name="sizeHint" stdset="0">
-                 <size>
-                  <width>20</width>
-                  <height>40</height>
-                 </size>
-                </property>
-               </spacer>
+                <item>
+                 <widget class="QPushButton" name="connect_vmu_btn">
+                  <property name="font">
+                   <font>
+                    <weight>75</weight>
+                    <bold>true</bold>
+                   </font>
+                  </property>
+                  <property name="text">
+                   <string>Подключиться</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="constantly_req_vmu_params">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
+                  <property name="text">
+                   <string>Постоянно</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="label">
+                  <property name="text">
+                   <string>Время опроса, мс</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="response_time_edit">
+                  <property name="inputMask">
+                   <string extracomment="от 10 до 60 000"/>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="start_record">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
+                  <property name="text">
+                   <string>Запись</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="verticalSpacer_3">
+                  <property name="orientation">
+                   <enum>Qt::Vertical</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>20</width>
+                    <height>40</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="select_file_vmu_params">
+                  <property name="acceptDrops">
+                   <bool>false</bool>
+                  </property>
+                  <property name="inputMethodHints">
+                   <set>Qt::ImhMultiLine</set>
+                  </property>
+                  <property name="text">
+                   <string>Выбрать файл  
+ с параметрами для записи</string>
+                  </property>
+                  <property name="checkable">
+                   <bool>false</bool>
+                  </property>
+                  <property name="autoExclusive">
+                   <bool>false</bool>
+                  </property>
+                  <property name="flat">
+                   <bool>false</bool>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
               </item>
              </layout>
             </item>
@@ -192,7 +245,7 @@
            </sizepolicy>
           </property>
           <property name="currentIndex">
-           <number>0</number>
+           <number>2</number>
           </property>
           <widget class="QWidget" name="all_params">
            <property name="sizePolicy">

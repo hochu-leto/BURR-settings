@@ -397,9 +397,6 @@ class CANMarathon:
                     ret = can_read
             else:
                 print(' Нет события или нет нового байта')
-            # else:  # if cw[0].wflags == 0x04:  # ошибка сети
-            #     print('ошибка сети EWL, BOFF, HOVR, SOVR, или WTOUT')
-            # здесь процедурой CiErrsGetClear надо вычислить что за ошибка
         self.lib.CiStop(self.can_canal_number)
         self.lib.CiClose(self.can_canal_number)
         if ret in error_codes.keys():
@@ -439,28 +436,18 @@ class CANMarathon:
                 buffer.flags = 0
             # записываю данные
             j = 0
-            # print('Отправляю сообщение на ' + hex(buffer.id))
-            # print(hex(buffer.id), end='    ')
             for i in message:
-                # print(hex(i), end=' ')
                 buffer.data[j] = ctypes.c_uint8(i)
                 j += 1
             buffer.len = len(message)
-            # print()
             # отправляю запрос. В идеальном мире это должно получиться с первого раза
             # если не будет стабильно получаться, оставлю этот цикл
-            # for i in range(self.max_iteration):
             try:
                 transmit_ok = self.lib.CiTransmit(self.can_canal_number, ctypes.pointer(buffer))
             except Exception as e:
                 print('CiTransmit do not work')
                 pprint(e)
                 exit()
-            # else:
-            # print('   в CiTransmit так ' + str(transmit_ok))
-            # это тоже часть цикла, если будет работать стабильно с первого раза это тоже удалить
-            # if transmit_ok == 0:
-            #     break
             # если передача не удалась, запрашиваю следующий параметр
             # при этом в ответный список добавляю строковое сообщение об ошибке
             if transmit_ok < 0:
@@ -484,6 +471,7 @@ class CANMarathon:
                 exit()
             # else:
             #     print('    в msg_zero так ' + str(result))
+
             # кажется, цикл здесь нужен, если между запросом и ответом влезет сообщение с чужого ID
             # поэтому цикл пусть остается
             for itr_global in range(self.max_iteration):
@@ -500,6 +488,7 @@ class CANMarathon:
                     exit()
                 # else:
                 #     print('     в CiRcQueCancel так ' + str(result))
+
                 # теперь самое интересное - ждём события когда появится новое сообщение в очереди
                 try:
                     result = self.lib.CiWaitEvent(ctypes.pointer(cw), 1, 1000)  # timeout = 1000 миллисекунд
@@ -509,19 +498,20 @@ class CANMarathon:
                     exit()
                 # else:
                 #     print('      в CiWaitEvent так ' + str(result))
+
                 # и когда количество кадров в приемной очереди стало больше
                 # или равно значению порога - 1
                 if result > 0 and cw[0].wflags & 0x01:
                     # и тогда читаем этот кадр из очереди
                     try:
                         result = self.lib.CiRead(self.can_canal_number, ctypes.pointer(buffer), 1)
-                        # print('Принято сообщение с ID  ' + hex(buffer.id))
                     except Exception as e:
                         print('CiRead do not work')
                         pprint(e)
                         exit()
                     # else:
                     #     print('       в CiRead так ' + str(result))
+
                     # если удалось прочитать
                     if result >= 0:
                         # попался нужный ид
@@ -548,16 +538,17 @@ class CANMarathon:
             print('CiStop do not work')
             pprint(e)
             exit()
-        else:
-            print('      в CiStop так ' + str(result))
+        # else:
+        #     print('      в CiStop так ' + str(result))
+
         try:
             result = self.lib.CiClose(self.can_canal_number)
         except Exception as e:
             print('CiClose do not work')
             pprint(e)
             exit()
-        else:
-            print('       в CiClose так ' + str(result))
+        # else:
+        #     print('       в CiClose так ' + str(result))
         return answer_list
 
 
