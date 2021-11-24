@@ -119,7 +119,7 @@ class CANMarathon:
     def __init__(self):
         self.lib = cdll.LoadLibrary(r"C:\Program Files (x86)\CHAI-2.14.0\x64\chai.dll")
         self.lib.CiInit()
-        self.can_canal_number = 0
+        self.can_canal_number = 1
 
     def canal_open(self):
         result = -1
@@ -135,6 +135,18 @@ class CANMarathon:
             exit()
         else:
             print('в CiOpen так ' + str(result))
+            # если канал занят, переключусь на другой канал
+            if result == 65535 or result == 65526:
+                self.can_canal_number = 1
+                try:
+                    result = self.lib.CiOpen(self.can_canal_number,
+                                             0x2 | 0x4)  # 0x2 | 0x4 - это приём 11bit и 29bit заголовков
+                except Exception as e:
+                    print('CiOpen do not work')
+                    pprint(e)
+                    exit()
+                else:
+                    print('в CiOpen так ' + str(result))
 
         if result != 0:
             self.lib.CiInit()

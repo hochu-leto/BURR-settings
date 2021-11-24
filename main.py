@@ -10,6 +10,7 @@
 
 import datetime
 import sys
+from pprint import pprint
 
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, pyqtSlot, QRegExp
 from PyQt5.QtGui import QColor, QRegExpValidator
@@ -89,23 +90,57 @@ rtcon_vmu = 0x1850460E
 vmu_rtcon = 0x594
 
 
+def make_vmu_params_list():
+    fname = QFileDialog.getOpenFileName(window, 'Файл с нужными параметрами КВУ', 'C:\\Users\\timofey.inozemtsev'
+                                                                              '\\PycharmProjects\\CAN_Analyzer',
+                                        "Excel tables (*.xlsx)")[0]
+    if fname and ('.xls' in fname):
+        excel_data = pandas.read_excel(fname)
+    else:
+        print('File no choose')
+        return False
+    true_tuple = ('name', 'address', 'scale', 'scaleB', 'unit')
+    par_list = excel_data.to_dict(orient='records')
+    check_list = par_list[0].keys()
+    result_list = [item for item in true_tuple if item not in check_list]
+
+    if not result_list:
+        if len(str(par_list[0]['address'])) > 6:
+            vmu_params_list = fill_vmu_list(fname)
+            window.vmu_param_table.itemChanged.connect(check_connection)
+            show_empty_params_list(vmu_params_list, 'vmu_param_table')
+        else:
+            QMessageBox.critical(window, "Ошибка ", 'Поле "address" должно быть\n'
+                                                    '2 байта индекса + 1 байт сабиндекса\n'
+                                                    'Например "0x520B09"',
+                                 QMessageBox.Ok)
+    else:
+        QMessageBox.critical(window, "Ошибка ", 'В выбранном файле не хватает полей' + '\n' + ''.join(result_list),
+                             QMessageBox.Ok)
+
+
 def fill_vmu_list(file_name: str):
     excel_data_df = pandas.read_excel(file_name)
     vmu_params_list = excel_data_df.to_dict(orient='records')
+    exit_list = []
     for par in vmu_params_list:
-        if str(par['scale']) == 'nan':
-            par['scale'] = 1
-        if str(par['scaleB']) == 'nan':
-            par['scaleB'] = 0
-        if str(par['address']) != 'nan':
-            if isinstance(par['address'], str):
-                if '0x' in par['address']:
-                    par['address'] = par['address'].rsplit('x')[1]
-                par['address'] = int(par['address'], 16)
-    return vmu_params_list
+        if str(par['name']) != 'nan':
+            if str(par['address']) != 'nan':
+                if isinstance(par['address'], str):
+                    if '0x' in par['address']:
+                        par['address'] = par['address'].rsplit('x')[1]
+                    par['address'] = int(par['address'], 16)
+                if str(par['scale']) == 'nan':
+                    par['scale'] = 1
+                if str(par['scaleB']) == 'nan':
+                    par['scaleB'] = 0
+                exit_list.append(par)
+    return exit_list
+
 
 def check_response_time(item):
     pass
+
 
 def const_req_vmu_params():
     if not window.vmu_req_thread.running:
@@ -146,7 +181,7 @@ def start_btn_pressed():
         window.start_record.setText('Запись')
         window.constantly_req_vmu_params.setChecked(False)
         window.constantly_req_vmu_params.setEnabled(True)
-        window.connect_vmu_btn.setEnabled(False)
+        window.connect_vmu_btn.setEnabled(True)
 
 
 def feel_req_list(p_list: list):
@@ -195,7 +230,7 @@ def fill_vmu_params_values(ans_list: list):
                     (message[6] << 16) + \
                     (message[5] << 8) + message[4]
             par['value'] = (value / par['scale']) - par['scaleB']
-            par['value'] = float('{:.3f}'.format(par['value']))
+            par['value'] = float('{:.2f}'.format(par['value']))
         i += 1
     print('Новые параметры КВУ записаны ')
 
@@ -313,17 +348,18 @@ def show_empty_params_list(list_of_params: list, table: str):
         description_Item = QTableWidgetItem(description)
         show_table.setItem(row, 1, description_Item)
 
-        if str(par['address']) != 'nan':
-            if isinstance(par['address'], str):
-                if '0x' in par['address']:
-                    par['address'] = par['address'].rsplit('x')[1]
-                par['address'] = int(par['address'], 16)
-            adr = hex(par['address'])
-        else:
-            adr = ''
-        adr_Item = QTableWidgetItem(adr)
-        adr_Item.setFlags(adr_Item.flags() & ~Qt.ItemIsEditable)
-        show_table.setItem(row, 2, adr_Item)
+        if par['address']:
+            if str(par['address']) != 'nan':
+                # if isinstance(par['address'], str):
+                #     if '0x' in par['address']:
+                #         par['address'] = par['address'].rsplit('x')[1]
+                #     par['address'] = int(par['address'], 16)
+                adr = hex(round(par['address']))
+            else:
+                adr = ''
+            adr_Item = QTableWidgetItem(adr)
+            adr_Item.setFlags(adr_Item.flags() & ~Qt.ItemIsEditable)
+            show_table.setItem(row, 2, adr_Item)
 
         if str(par['unit']) != 'nan':
             unit = str(par['unit'])
@@ -500,7 +536,6 @@ class VMUSaveToFileThread(QObject):
 
     # метод, который будет выполнять алгоритм в другом потоке
     def run(self):
-        print('Запускаем параллельный поток для опроса кву')
         while True:
             if window.record_vmu_params:
                 columns = []
@@ -512,7 +547,6 @@ class VMUSaveToFileThread(QObject):
                 data.append(data_string)
                 df = pandas.DataFrame(data, columns=columns)
                 df.to_csv(self.recording_file_name, mode='a', index=False, header=False, encoding='windows-1251')
-                # print('Файл обновлён. Но это неточно')
             #  Получаю новые параметры от КВУ
             ans_list = []
             answer = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
@@ -521,17 +555,21 @@ class VMUSaveToFileThread(QObject):
             if isinstance(answer, str):
                 ans_list.append(answer)
             else:
-                ans_list = answer
+                ans_list = answer.copy()
             #  И отправляю их в основной поток для обновления
             self.new_vmu_params.emit(ans_list)
 
             response_time = window.response_time_edit.text()
-            if not response_time:
+            if response_time:
+                response_time = int(response_time)
+                if not response_time:
+                    response_time = 1000
+                if response_time < 10:
+                    response_time = 10
+                elif response_time > 60000:
+                    response_time = 60000
+            else:
                 response_time = 1000
-            if response_time < 10:
-                response_time = 10
-            elif response_time > 60000:
-                response_time = 60000
             QThread.msleep(response_time)
 
 
@@ -561,9 +599,12 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
     @pyqtSlot(list)
     def add_new_vmu_params(self, list_of_params: list):
         # если в списке строка - нахер такой список, похоже, нас отсоединили
-        if isinstance(list_of_params[0], str):
+        # но бывает, что параметр не прилетел в первый пункт списка, тогда нужно проверить,
+        # что хотя бы два пункта списка - строки( или придумать более изощерённую проверку)
+        if len(list_of_params) == 1 or (isinstance(list_of_params[0], str) and isinstance(list_of_params[1], str)):
             QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + list_of_params[0], QMessageBox.Ok)
             window.connect_vmu_btn.setText('Подключиться')
+            window.connect_vmu_btn.setEnabled(True)
             window.start_record.setText('Запись')
             window.start_record.setEnabled(False)
             window.constantly_req_vmu_params.setChecked(False)
@@ -822,6 +863,7 @@ window.connect_vmu_btn.clicked.connect(connect_vmu)
 window.start_record.clicked.connect(start_btn_pressed)
 window.constantly_req_vmu_params.toggled.connect(const_req_vmu_params)
 window.response_time_edit.textEdited.connect(check_response_time)
+window.select_file_vmu_params.clicked.connect(make_vmu_params_list)
 
 window.show()  # Показываем окно
 app.exec_()  # и запускаем приложение
