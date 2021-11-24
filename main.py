@@ -92,7 +92,7 @@ vmu_rtcon = 0x594
 
 def make_vmu_params_list():
     fname = QFileDialog.getOpenFileName(window, 'Файл с нужными параметрами КВУ', 'C:\\Users\\timofey.inozemtsev'
-                                                                              '\\PycharmProjects\\CAN_Analyzer',
+                                                                                  '\\PycharmProjects',
                                         "Excel tables (*.xlsx)")[0]
     if fname and ('.xls' in fname):
         excel_data = pandas.read_excel(fname)
@@ -472,7 +472,7 @@ def set_param(address: int, value: int):
     print(' Trying to set param in address ' + str(address) + ' to new value ' + str(value))
     effort = marathon.can_write(current_wheel, data)
     if not effort:
-        print(f'Successfully updated param in address {address} into devise')
+        print(f'Successfully updated param in address {address} into device')
         for param in params_list:
             if param['address'] == address:
                 param['value'] = value
@@ -602,7 +602,6 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
         # но бывает, что параметр не прилетел в первый пункт списка, тогда нужно проверить,
         # что хотя бы два пункта списка - строки( или придумать более изощерённую проверку)
         if len(list_of_params) == 1 or (isinstance(list_of_params[0], str) and isinstance(list_of_params[1], str)):
-            QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + list_of_params[0], QMessageBox.Ok)
             window.connect_vmu_btn.setText('Подключиться')
             window.connect_vmu_btn.setEnabled(True)
             window.start_record.setText('Запись')
@@ -612,6 +611,7 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
             window.record_vmu_params = False
             window.thread_to_record.running = False
             window.thread_to_record.terminate()
+            QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + list_of_params[0], QMessageBox.Ok)
         else:
             fill_vmu_params_values(list_of_params)
             self.show_new_vmu_params()
@@ -672,17 +672,22 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
         item = slider.value()
         value = item / often_used_params[param]['scale']
         address = often_used_params[param]['address']
-        print(f'New {param} is {item}')
+        # print(f'New {param} is {item}')
         label = getattr(self, 'lab_' + param)
         label.setText(str(value) + often_used_params[param]['unit'])
         # надо сделать цикл раза три запихнуть параметр и проверить, если не получилось - предупреждение
-        if set_param(address, item):
-            check_value = get_param(address)
-            if check_value == item:
-                print('Checked changed value - OK')
-                label.setStyleSheet('background-color: green')
-                return True
+        for i in range(marathon.max_iteration):
+            if set_param(address, item):
+                check_value = get_param(address)
+                if check_value == item:
+                    print('Checked changed value - OK')
+                    label.setStyleSheet('background-color: green')
+                    return True
+                print(check_value)
+        QMessageBox.critical(window, "Ошибка ", 'Что-то пошло не по плану,\n данные не записались',
+                             QMessageBox.Ok)
         label.setStyleSheet('background-color: red')
+        return False
 
     def best_params(self):
         self.lb_soft_version.setText('Версия ПО БУРР ' + str(get_param(42)))

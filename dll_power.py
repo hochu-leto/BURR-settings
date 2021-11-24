@@ -124,8 +124,6 @@ class CANMarathon:
     def canal_open(self):
         result = -1
         open_canal = -1
-        # itr = 0
-        # while open_canal < 0:
         try:
             result = self.lib.CiOpen(self.can_canal_number,
                                      0x2 | 0x4)  # 0x2 | 0x4 - это приём 11bit и 29bit заголовков
@@ -135,18 +133,19 @@ class CANMarathon:
             exit()
         else:
             print('в CiOpen так ' + str(result))
-            # если канал занят, переключусь на другой канал
-            if result == 65535 or result == 65526:
-                self.can_canal_number = 1
-                try:
-                    result = self.lib.CiOpen(self.can_canal_number,
-                                             0x2 | 0x4)  # 0x2 | 0x4 - это приём 11bit и 29bit заголовков
-                except Exception as e:
-                    print('CiOpen do not work')
-                    pprint(e)
-                    exit()
-                else:
-                    print('в CiOpen так ' + str(result))
+            # # если канал занят, переключусь на другой канал
+            #   не работает - если RTCON или CANwise висят на одном канале, второй канал не получается открыть
+            # if result == 65535 or result == 65526:
+            #     self.can_canal_number = 1
+            #     try:
+            #         result = self.lib.CiOpen(self.can_canal_number,
+            #                                  0x2 | 0x4)  # 0x2 | 0x4 - это приём 11bit и 29bit заголовков
+            #     except Exception as e:
+            #         print('CiOpen do not work')
+            #         pprint(e)
+            #         exit()
+            #     else:
+            #         print('в CiOpen так ' + str(result))
 
         if result != 0:
             self.lib.CiInit()
@@ -185,11 +184,6 @@ class CANMarathon:
             else:
                 return str(result)
 
-        # # if itr > self.max_iteration:
-        # #     return False
-        # # else:
-        # #     itr += 1
-        # return True
         return ''
 
     def check_connection(self):
@@ -460,6 +454,9 @@ class CANMarathon:
                 print('CiTransmit do not work')
                 pprint(e)
                 exit()
+            else:
+                print('   в CiTransmit ' + str(transmit_ok))
+
             # если передача не удалась, запрашиваю следующий параметр
             # при этом в ответный список добавляю строковое сообщение об ошибке
             if transmit_ok < 0:
@@ -498,8 +495,8 @@ class CANMarathon:
                     print('CiRcQueCancel do not work')
                     pprint(e)
                     exit()
-                # else:
-                #     print('     в CiRcQueCancel так ' + str(result))
+                else:
+                    print('     в CiRcQueCancel так ' + str(result))
 
                 # теперь самое интересное - ждём события когда появится новое сообщение в очереди
                 try:
@@ -508,8 +505,8 @@ class CANMarathon:
                     print('CiWaitEvent do not work')
                     pprint(e)
                     exit()
-                # else:
-                #     print('      в CiWaitEvent так ' + str(result))
+                else:
+                    print('      в CiWaitEvent так ' + str(result))
 
                 # и когда количество кадров в приемной очереди стало больше
                 # или равно значению порога - 1
@@ -521,8 +518,8 @@ class CANMarathon:
                         print('CiRead do not work')
                         pprint(e)
                         exit()
-                    # else:
-                    #     print('       в CiRead так ' + str(result))
+                    else:
+                        print('       в CiRead так ' + str(result))
 
                     # если удалось прочитать
                     if result >= 0:
