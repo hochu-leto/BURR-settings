@@ -7,11 +7,12 @@
 - нет индикации работы когда считывает параметры
 
 """
-
+import ctypes
 import datetime
 import sys
 from pprint import pprint
 
+import numpy
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, pyqtSlot, QRegExp
 from PyQt5.QtGui import QColor, QRegExpValidator
 
@@ -229,6 +230,7 @@ def fill_vmu_params_values(ans_list: list):
             value = (message[7] << 24) + \
                     (message[6] << 16) + \
                     (message[5] << 8) + message[4]
+            value = ctypes.c_int16(value).value
             par['value'] = (value / par['scale']) - par['scaleB']
             par['value'] = float('{:.2f}'.format(par['value']))
         i += 1
@@ -289,7 +291,8 @@ def make_compare_list():
             value = int(param['value'])
             compare_param_dict[param['name']] = value
     show_compare_list(compare_param_dict)
-    window.load_to_device_button.setEnabled(True)
+    # пока этот процесс не отлажен
+    # window.load_to_device_button.setEnabled(True)
 
 
 def check_connection():
@@ -350,11 +353,7 @@ def show_empty_params_list(list_of_params: list, table: str):
 
         if par['address']:
             if str(par['address']) != 'nan':
-                # if isinstance(par['address'], str):
-                #     if '0x' in par['address']:
-                #         par['address'] = par['address'].rsplit('x')[1]
-                #     par['address'] = int(par['address'], 16)
-                adr = hex(round(par['address']))
+               adr = hex(round(par['address']))
             else:
                 adr = ''
             adr_Item = QTableWidgetItem(adr)
@@ -379,8 +378,6 @@ def update_param():
         if window.tab_burr.currentWidget() == window.often_used_params:
             window.best_params()
         elif window.tab_burr.currentWidget() == window.editable_params:
-            # я зачем-то раньше обновлял пустой список, сейчас это не нужно
-            # show_empty_params_list(editable_params_list, 'params_table_2')
             show_value(window.value_col, editable_params_list, 'params_table_2')
             if compare_param_dict:
                 show_compare_list(compare_param_dict)
@@ -736,6 +733,7 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
                 slider.valueChanged.connect(self.set_slider)
                 param = param / par['scale']
                 label.setText(str(param) + par['unit'])
+                label.setStyleSheet('background-color: white')
 
     def list_of_params_table(self, item):
         item = bookmark_dict[item.text()]

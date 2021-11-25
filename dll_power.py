@@ -528,7 +528,7 @@ class CANMarathon:
                             # добавляю в список новую строку и прехожу к следующей итерации
                             byte_list = []
                             for i in range(buffer.len):
-                                byte_list.append(buffer.data[i])
+                                byte_list.append(c_uint8(buffer.data[i]).value)
                             answer_list.append(byte_list)
                             err = ''
                             break
@@ -536,6 +536,10 @@ class CANMarathon:
                             err = 'Нет ответа от блока управления'
                     else:
                         err = 'Ошибка при чтении с буфера канала ' + str(result)
+                elif result == 0:
+                    err = 'Слишком долгое ожидание ответа CAN шины '
+                    answer_list.append(err)
+                    break
                 else:
                     err = 'Нет подключения к CAN шине '
             if err:
