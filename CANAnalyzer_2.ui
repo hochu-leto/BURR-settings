@@ -199,34 +199,6 @@
             </item>
            </layout>
           </widget>
-          <widget class="QWidget" name="all_params">
-           <attribute name="title">
-            <string>pass</string>
-           </attribute>
-           <widget class="QTextBrowser" name="textBrowser">
-            <property name="geometry">
-             <rect>
-              <x>10</x>
-              <y>10</y>
-              <width>256</width>
-              <height>192</height>
-             </rect>
-            </property>
-           </widget>
-           <widget class="QPushButton" name="start_btn">
-            <property name="geometry">
-             <rect>
-              <x>280</x>
-              <y>10</y>
-              <width>56</width>
-              <height>17</height>
-             </rect>
-            </property>
-            <property name="text">
-             <string>Старт</string>
-            </property>
-           </widget>
-          </widget>
          </widget>
         </item>
        </layout>
@@ -245,7 +217,7 @@
            </sizepolicy>
           </property>
           <property name="currentIndex">
-           <number>2</number>
+           <number>0</number>
           </property>
           <widget class="QWidget" name="all_params">
            <property name="sizePolicy">
@@ -865,11 +837,6 @@
          </layout>
         </item>
        </layout>
-      </widget>
-      <widget class="QWidget" name="monitor_evo">
-       <attribute name="title">
-        <string>Монитор CAN</string>
-       </attribute>
       </widget>
      </widget>
     </item>

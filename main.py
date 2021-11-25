@@ -736,6 +736,7 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
                 slider.valueChanged.connect(self.set_slider)
                 param = param / par['scale']
                 label.setText(str(param) + par['unit'])
+                label.setStyleSheet('background-color: white')
 
     def list_of_params_table(self, item):
         item = bookmark_dict[item.text()]

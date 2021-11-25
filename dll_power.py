@@ -536,10 +536,20 @@ class CANMarathon:
                             err = 'Нет ответа от блока управления'
                     else:
                         err = 'Ошибка при чтении с буфера канала ' + str(result)
+                #  если время ожидания хоть какого-то сообщения в шине больше секунды,
+                #  значит , нас отключили, уходим
+                elif result == 0:
+                    err = ' Нет CAN шины больше секунды '
+                    self.close_marathon_canal()
+                    return err
                 else:
                     err = 'Нет подключения к CAN шине '
             if err:
                 answer_list.append(err)
+        self.close_marathon_canal()
+        return answer_list
+
+    def close_marathon_canal(self):
         # закрываю канал и останавливаю Марафон
         try:
             result = self.lib.CiStop(self.can_canal_number)
@@ -558,8 +568,6 @@ class CANMarathon:
             exit()
         # else:
         #     print('       в CiClose так ' + str(result))
-        return answer_list
-
 
 if __name__ == "__main__":
     #  trying()
