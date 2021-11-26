@@ -1,22 +1,34 @@
 """
 Проблемы программы:
-- вылетает после установки часто используемых параметром, при этом сам параметр успевает изменить
+(- вылетает после установки часто используемых параметром, при этом сам параметр успевает изменить) - не подтвердилось
 - очень долго сохраняет параметры из рейки в файл
-- не работает кнопка обновить когда уже подключено
+(- не работает кнопка обновить когда уже подключено) - перепроверить
 - не подключается когда подключили марафон или закрыли рткон или канвайс
 - нет индикации работы когда считывает параметры
+- выбрасывает ошибку при установке задней или передней оси(но ось задаёт)
+- в списке осей нет индикации заводской настройки
+- не записывает значения параметров из файла настроек в устройство
+- не записывает порядок байт
+- после сохранения параметров БУРР их нет в листе
 
+Избавляемся от:
+- (когда нет подключения при переключении на другую вкладку в основных параметрах пока
+опрашивает каждый параметр, выбрасывает ошибку на каждый ) -  исправил
+- (глобальных путей файлов *.xlsx) - исправил
+
+Добавляю:
+ - (папки для сохранения записей кву и для настроек БУРР) - добавил
 """
-import ctypes
+
 import datetime
+import pathlib
 import sys
 from pprint import pprint
 
-import numpy
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, pyqtSlot, QRegExp
 from PyQt5.QtGui import QColor, QRegExpValidator
 
-sys.path.insert(1, 'C:\\Users\\timofey.inozemtsev\\PycharmProjects\\dll_power')
+# sys.path.insert(1, 'C:\\Users\\timofey.inozemtsev\\PycharmProjects\\dll_power')
 from dll_power import CANMarathon
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtWidgets import QTableWidgetItem, QApplication, QMessageBox, QFileDialog
@@ -92,8 +104,7 @@ vmu_rtcon = 0x594
 
 
 def make_vmu_params_list():
-    fname = QFileDialog.getOpenFileName(window, 'Файл с нужными параметрами КВУ', 'C:\\Users\\timofey.inozemtsev'
-                                                                                  '\\PycharmProjects',
+    fname = QFileDialog.getOpenFileName(window, 'Файл с нужными параметрами КВУ', dir_path,
                                         "Excel tables (*.xlsx)")[0]
     if fname and ('.xls' in fname):
         excel_data = pandas.read_excel(fname)
@@ -120,7 +131,7 @@ def make_vmu_params_list():
                              QMessageBox.Ok)
 
 
-def fill_vmu_list(file_name: str):
+def fill_vmu_list(file_name):
     excel_data_df = pandas.read_excel(file_name)
     vmu_params_list = excel_data_df.to_dict(orient='records')
     exit_list = []
@@ -160,8 +171,11 @@ def start_btn_pressed():
 
         window.record_vmu_params = True
         window.start_record.setText('Стоп')
-        window.vmu_req_thread.recording_file_name = 'vmu_record_' + \
-                                                    datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + '.csv'
+        window.vmu_req_thread.recording_file_name = pathlib.Path(dir_path,
+                                                                 'VMU records',
+                                                                 'vmu_record_' +
+                                                                 datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") +
+                                                                 '.csv')
         i = 0
         column = []
         data = []
@@ -230,7 +244,6 @@ def fill_vmu_params_values(ans_list: list):
             value = (message[7] << 24) + \
                     (message[6] << 16) + \
                     (message[5] << 8) + message[4]
-            value = ctypes.c_int16(value).value
             par['value'] = (value / par['scale']) - par['scaleB']
             par['value'] = float('{:.2f}'.format(par['value']))
         i += 1
@@ -276,8 +289,9 @@ def show_compare_list(compare_param_dict: dict):
 
 def make_compare_list():
     global compare_param_dict
-    fname = QFileDialog.getOpenFileName(window, 'Файл с настройками БУРР-30', 'C:\\Users\\timofey.inozemtsev'
-                                                                              '\\PycharmProjects\\CAN_Analyzer',
+    fname = QFileDialog.getOpenFileName(window,
+                                        'Файл с настройками БУРР-30',
+                                        dir_path,
                                         "Excel tables (*.xlsx)")[0]
     if fname and ('.xls' in fname):
         excel_data = pandas.read_excel(fname)
@@ -291,8 +305,7 @@ def make_compare_list():
             value = int(param['value'])
             compare_param_dict[param['name']] = value
     show_compare_list(compare_param_dict)
-    # пока этот процесс не отлажен
-    # window.load_to_device_button.setEnabled(True)
+    window.load_to_device_button.setEnabled(True)
 
 
 def check_connection():
@@ -300,37 +313,38 @@ def check_connection():
 
 
 def show_value(col_value: int, list_of_params: list, table: str):
-    global wr_err
-    show_table = getattr(window, table)
-    show_table.itemChanged.disconnect()
+    if get_param(42):  # проверка что есть связь с блоком
+        global wr_err
+        show_table = getattr(window, table)
+        show_table.itemChanged.disconnect()
 
-    row = 0
+        row = 0
 
-    for par in list_of_params:
-        if (not par['value']) or (str(par['value']) == 'nan'):
-            value = get_param(int(par['address']))
-            par['value'] = value
-        else:
-            value = par['value']
-        print(value)
+        for par in list_of_params:
+            if (not par['value']) or (str(par['value']) == 'nan'):
+                value = get_param(int(par['address']))
+                par['value'] = value
+            else:
+                value = par['value']
+            print(value)
 
-        value_Item = QTableWidgetItem(str(value))
+            value_Item = QTableWidgetItem(str(value))
 
-        if str(par['editable']) != 'nan':
-            value_Item.setFlags(value_Item.flags() | Qt.ItemIsEditable)
-            value_Item.setBackground(QColor('#D7FBFF'))
-        else:
-            value_Item.setFlags(value_Item.flags() & ~Qt.ItemIsEditable)
+            if str(par['editable']) != 'nan':
+                value_Item.setFlags(value_Item.flags() | Qt.ItemIsEditable)
+                value_Item.setBackground(QColor('#D7FBFF'))
+            else:
+                value_Item.setFlags(value_Item.flags() & ~Qt.ItemIsEditable)
 
-        if str(par['strings']) != 'nan':
-            value_Item.setStatusTip(str(par['strings']))
-            value_Item.setToolTip(str(par['strings']))
+            if str(par['strings']) != 'nan':
+                value_Item.setStatusTip(str(par['strings']))
+                value_Item.setToolTip(str(par['strings']))
 
-        show_table.setItem(row, col_value, value_Item)
+            show_table.setItem(row, col_value, value_Item)
 
-        row += 1
-    show_table.resizeColumnsToContents()
-    show_table.itemChanged.connect(window.save_item)
+            row += 1
+        show_table.resizeColumnsToContents()
+        show_table.itemChanged.connect(window.save_item)
 
 
 def show_empty_params_list(list_of_params: list, table: str):
@@ -353,7 +367,11 @@ def show_empty_params_list(list_of_params: list, table: str):
 
         if par['address']:
             if str(par['address']) != 'nan':
-               adr = hex(round(par['address']))
+                # if isinstance(par['address'], str):
+                #     if '0x' in par['address']:
+                #         par['address'] = par['address'].rsplit('x')[1]
+                #     par['address'] = int(par['address'], 16)
+                adr = hex(round(par['address']))
             else:
                 adr = ''
             adr_Item = QTableWidgetItem(adr)
@@ -378,6 +396,8 @@ def update_param():
         if window.tab_burr.currentWidget() == window.often_used_params:
             window.best_params()
         elif window.tab_burr.currentWidget() == window.editable_params:
+            # я зачем-то раньше обновлял пустой список, сейчас это не нужно
+            # show_empty_params_list(editable_params_list, 'params_table_2')
             show_value(window.value_col, editable_params_list, 'params_table_2')
             if compare_param_dict:
                 show_compare_list(compare_param_dict)
@@ -518,10 +538,16 @@ def save_all_params():
     if get_all_params():
         file_name = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         file_name = 'Burr-30_' + file_name + '.xlsx'
-        pandas.DataFrame(params_list).to_excel(file_name, index=False)
+        full_file_name = pathlib.Path(dir_path, 'Burr settings', file_name)
+        pandas.DataFrame(params_list).to_excel(full_file_name, index=False)
         print(' Save file success')
+        QMessageBox.information(window, "Успешный Успех", 'Файл настроек подключенного блока\n' +
+                                file_name + '\nищи в папке "Burr settings"',
+                                QMessageBox.Ok)
         return True
     print('Fail save file')
+    QMessageBox.critical(window, "Ошибка ", 'Файл с настройками БУРР сохранить не удалось',
+                         QMessageBox.Ok)
     return False
 
 
@@ -529,7 +555,11 @@ def save_all_params():
 class VMUSaveToFileThread(QObject):
     running = False
     new_vmu_params = pyqtSignal(list)
-    recording_file_name = 'vmu_record_' + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + '.csv'
+    recording_file_name = pathlib.Path(pathlib.Path.cwd(),
+                                       'VMU records',
+                                       'vmu_record_' +
+                                       datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") +
+                                       '.csv')
 
     # метод, который будет выполнять алгоритм в другом потоке
     def run(self):
@@ -543,7 +573,11 @@ class VMUSaveToFileThread(QObject):
                     data_string.append(par['value'])
                 data.append(data_string)
                 df = pandas.DataFrame(data, columns=columns)
-                df.to_csv(self.recording_file_name, mode='a', index=False, header=False, encoding='windows-1251')
+                df.to_csv(self.recording_file_name,
+                          mode='a',
+                          index=False,
+                          header=False,
+                          encoding='windows-1251')
             #  Получаю новые параметры от КВУ
             ans_list = []
             answer = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
@@ -792,13 +826,15 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
 app = QApplication([])
 window = ExampleApp()  # Создаём объект класса ExampleApp
 
-vmu_params_list = fill_vmu_list('C:\\Users\\timofey.inozemtsev\\PycharmProjects\\VMULogger\\table_for_params.xlsx')
+dir_path = str(pathlib.Path.cwd())
 
+vmu_param_file = 'table_for_params.xlsx'
+vmu_params_list = fill_vmu_list(pathlib.Path(dir_path, 'Tables', vmu_param_file))
 # заполняю дату с адресами параметров из списка, который задаётся в файле
 req_list = feel_req_list(vmu_params_list)
 
-excel_data_df = pandas.read_excel('C:\\Users\\timofey.inozemtsev\\PycharmProjects\\VMULogger'
-                                  '\\burr_30_forw_v31_27072021.xls')
+burr_param_file = 'burr_params.xls'
+excel_data_df = pandas.read_excel(pathlib.Path(dir_path, 'Tables', burr_param_file))
 params_list = excel_data_df.to_dict(orient='records')
 bookmark_dict = {}
 bookmark_list = []
