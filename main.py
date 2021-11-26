@@ -7,7 +7,7 @@
 - нет индикации работы когда считывает параметры
 
 """
-
+import ctypes
 import datetime
 import sys
 from pprint import pprint
@@ -229,6 +229,7 @@ def fill_vmu_params_values(ans_list: list):
             value = (message[7] << 24) + \
                     (message[6] << 16) + \
                     (message[5] << 8) + message[4]
+            value = ctypes.c_int16(value).value
             par['value'] = (value / par['scale']) - par['scaleB']
             par['value'] = float('{:.2f}'.format(par['value']))
         i += 1
