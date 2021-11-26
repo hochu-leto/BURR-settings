@@ -20,7 +20,7 @@
 Добавляю:
  - (папки для сохранения записей кву и для настроек БУРР) - добавил
 """
-
+import ctypes
 import datetime
 import pathlib
 import sys
@@ -245,7 +245,10 @@ def fill_vmu_params_values(ans_list: list):
             value = (message[7] << 24) + \
                     (message[6] << 16) + \
                     (message[5] << 8) + message[4]
-            par['value'] = (value / par['scale']) - par['scaleB']
+            if par['scale'] == 1:
+                par['value'] = ctypes.c_int16(value).value
+            else:
+                par['value'] = (value / par['scale']) - par['scaleB']
             par['value'] = float('{:.2f}'.format(par['value']))
         i += 1
     print('Новые параметры КВУ записаны ')
