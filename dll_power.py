@@ -528,6 +528,7 @@ class CANMarathon:
                             # добавляю в список новую строку и прехожу к следующей итерации
                             byte_list = []
                             for i in range(buffer.len):
+                                #  byte_list.append(c_uint8(buffer.data[i]).value)
                                 byte_list.append(buffer.data[i])
                             answer_list.append(byte_list)
                             err = ''
@@ -568,6 +569,7 @@ class CANMarathon:
             exit()
         # else:
         #     print('       в CiClose так ' + str(result))
+
 
 if __name__ == "__main__":
     #  trying()
