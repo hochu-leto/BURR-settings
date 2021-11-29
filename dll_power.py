@@ -131,8 +131,8 @@ class CANMarathon:
             print('CiOpen do not work')
             pprint(e)
             exit()
-        else:
-            print('в CiOpen так ' + str(result))
+        # else:
+        #     print('в CiOpen так ' + str(result))
             # # если канал занят, переключусь на другой канал
             #   не работает - если RTCON или CANwise висят на одном канале, второй канал не получается открыть
             # if result == 65535 or result == 65526:
@@ -160,8 +160,8 @@ class CANMarathon:
             print('CiSetBaud do not work')
             pprint(e)
             exit()
-        else:
-            print(' в CiSetBaud так ' + str(result))
+        # else:
+        #     print(' в CiSetBaud так ' + str(result))
 
         if result != 0:
             if result in error_codes.keys():
@@ -175,8 +175,8 @@ class CANMarathon:
             print('CiStart do not work')
             pprint(e)
             exit()
-        else:
-            print('  в CiStart так ' + str(open_canal))
+        # else:
+        #     print('  в CiStart так ' + str(open_canal))
 
         if open_canal != 0:
             if result in error_codes.keys():
@@ -454,8 +454,8 @@ class CANMarathon:
                 print('CiTransmit do not work')
                 pprint(e)
                 exit()
-            else:
-                print('   в CiTransmit ' + str(transmit_ok))
+            # else:
+            #     print('   в CiTransmit ' + str(transmit_ok))
 
             # если передача не удалась, запрашиваю следующий параметр
             # при этом в ответный список добавляю строковое сообщение об ошибке
@@ -495,8 +495,8 @@ class CANMarathon:
                     print('CiRcQueCancel do not work')
                     pprint(e)
                     exit()
-                else:
-                    print('     в CiRcQueCancel так ' + str(result))
+                # else:
+                #     print('     в CiRcQueCancel так ' + str(result))
 
                 # теперь самое интересное - ждём события когда появится новое сообщение в очереди
                 try:
@@ -505,8 +505,8 @@ class CANMarathon:
                     print('CiWaitEvent do not work')
                     pprint(e)
                     exit()
-                else:
-                    print('      в CiWaitEvent так ' + str(result))
+                # else:
+                #     print('      в CiWaitEvent так ' + str(result))
 
                 # и когда количество кадров в приемной очереди стало больше
                 # или равно значению порога - 1
@@ -518,8 +518,8 @@ class CANMarathon:
                         print('CiRead do not work')
                         pprint(e)
                         exit()
-                    else:
-                        print('       в CiRead так ' + str(result))
+                    # else:
+                    #     print('       в CiRead так ' + str(result))
 
                     # если удалось прочитать
                     if result >= 0:

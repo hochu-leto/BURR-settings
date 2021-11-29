@@ -246,10 +246,18 @@ def fill_vmu_params_values(ans_list: list):
                     (message[6] << 16) + \
                     (message[5] << 8) + message[4]
             # если множителя нет, то берём знаковое int
+            print(par['name'])
+            for i in message:
+                print(hex(i), end=' ')
+            print()
             if par['scale'] == 1:
                 par['value'] = ctypes.c_int16(value).value
             # возможно, здесь тоже нужно вытаскивать знаковое int
             else:
+                for i in message:
+                    print(hex(i), end=' ')
+                print()
+                par['value'] = ctypes.c_int32(value).value
                 par['value'] = (value / par['scale']) - par['scaleB']
             par['value'] = float('{:.2f}'.format(par['value']))
         i += 1
