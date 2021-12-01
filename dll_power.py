@@ -119,7 +119,7 @@ class CANMarathon:
     def __init__(self):
         self.lib = cdll.LoadLibrary(r"C:\Program Files (x86)\CHAI-2.14.0\x64\chai.dll")
         self.lib.CiInit()
-        self.can_canal_number = 1
+        self.can_canal_number = 0
 
     def canal_open(self):
         result = -1
@@ -131,8 +131,8 @@ class CANMarathon:
             print('CiOpen do not work')
             pprint(e)
             exit()
-        # else:
-        #     print('в CiOpen так ' + str(result))
+        else:
+            print('в CiOpen так ' + str(result))
             # # если канал занят, переключусь на другой канал
             #   не работает - если RTCON или CANwise висят на одном канале, второй канал не получается открыть
             # if result == 65535 or result == 65526:
@@ -160,8 +160,8 @@ class CANMarathon:
             print('CiSetBaud do not work')
             pprint(e)
             exit()
-        # else:
-        #     print(' в CiSetBaud так ' + str(result))
+        else:
+            print(' в CiSetBaud так ' + str(result))
 
         if result != 0:
             if result in error_codes.keys():
@@ -175,8 +175,8 @@ class CANMarathon:
             print('CiStart do not work')
             pprint(e)
             exit()
-        # else:
-        #     print('  в CiStart так ' + str(open_canal))
+        else:
+            print('  в CiStart так ' + str(open_canal))
 
         if open_canal != 0:
             if result in error_codes.keys():
@@ -428,9 +428,15 @@ class CANMarathon:
         self.lib.CiWaitEvent.argtypes = [ctypes.POINTER(array_cw), ctypes.c_int32, ctypes.c_int16]
         # и в CiTransmit
         self.lib.CiTransmit.argtypes = [ctypes.c_int8, ctypes.POINTER(self.Buffer)]
+        errors_counter = 0
+        len_req_list = len(messages)
         # предполагается, что в messages будут список сообщений по 8 байт для запроса по ID can_id_req
         # поэтому нужно пройти по списку
         for message in messages:
+            # если ошибочных сообщений больше трети, что-то здесь не так
+            if errors_counter > len_req_list / 3:
+                self.close_marathon_canal()
+                return err
             err = ''
             # из-за того, что буфер каждый раз обнуляю, надо заново записывать в него ИД и флаг сообщения
             buffer.id = ctypes.c_uint32(can_id_req)
@@ -540,13 +546,14 @@ class CANMarathon:
                 #  если время ожидания хоть какого-то сообщения в шине больше секунды,
                 #  значит , нас отключили, уходим
                 elif result == 0:
-                    err = ' Нет CAN шины больше секунды '
+                    err = 'Нет CAN шины больше секунды '
                     self.close_marathon_canal()
                     return err
                 else:
                     err = 'Нет подключения к CAN шине '
             if err:
                 answer_list.append(err)
+                errors_counter += 1
         self.close_marathon_canal()
         return answer_list
 

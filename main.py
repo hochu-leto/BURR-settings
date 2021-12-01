@@ -25,9 +25,9 @@
 --- исправить проверку на адрес, и если есть индекс и саб_индекс, брать их за основу и запихивать в адрес
 -- скале_валуе - если есть, и не ноль, то запихиваем в скале
 
-- для уменьшения вероятности вылета во время чтения с кву сделать проверку не двух первых записей ответного списка,
+- (для уменьшения вероятности вылета во время чтения с кву сделать проверку не двух первых записей ответного списка,
  а сделать еррор_каунтер, который увеличивается при каждой строке в списке вместо значения, и
- если он превышать треть от длины всего списка, - значит нас отключили
+ если он превышать треть от длины всего списка, - значит нас отключили) - реализовал в dll_power
 - ограничить число записываемых параметров не более 50 штук, если в файле больше - брать только первые 50,
  либо предлагать выбрать другой файл
 """
@@ -41,6 +41,7 @@ from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, pyqtSlot, QRegExp
 from PyQt5.QtGui import QColor, QRegExpValidator
 
 # sys.path.insert(1, 'C:\\Users\\timofey.inozemtsev\\PycharmProjects\\dll_power')
+from append_to_excel import append_df_to_excel
 from dll_power import CANMarathon
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtWidgets import QTableWidgetItem, QApplication, QMessageBox, QFileDialog
@@ -123,21 +124,23 @@ def make_vmu_params_list():
     else:
         print('File no choose')
         return False
-    true_tuple = ('name', 'address', 'scale', 'scaleB', 'unit')
+    true_tuple = ('name', 'address', 'scale', 'unit')
     par_list = excel_data.to_dict(orient='records')
     check_list = par_list[0].keys()
+    #  проверяю чтоб все нужные поля были в наличии
     result_list = [item for item in true_tuple if item not in check_list]
 
     if not result_list:
-        if len(str(par_list[0]['address'])) > 6:
-            vmu_params_list = fill_vmu_list(fname)
-            window.vmu_param_table.itemChanged.connect(check_connection)
-            show_empty_params_list(vmu_params_list, 'vmu_param_table')
-        else:
+        if len(str(par_list[0]['address'])) < 6:
+
             QMessageBox.critical(window, "Ошибка ", 'Поле "address" должно быть\n'
                                                     '2 байта индекса + 1 байт сабиндекса\n'
                                                     'Например "0x520B09"',
                                  QMessageBox.Ok)
+        else:
+            vmu_params_list = fill_vmu_list(fname)
+            window.vmu_param_table.itemChanged.connect(check_connection)
+            show_empty_params_list(vmu_params_list, 'vmu_param_table')
     else:
         QMessageBox.critical(window, "Ошибка ", 'В выбранном файле не хватает полей' + '\n' + ''.join(result_list),
                              QMessageBox.Ok)
@@ -158,7 +161,6 @@ def fill_vmu_list(file_name):
                     par['scale'] = 1
                 if str(par['scaleB']) == 'nan':
                     par['scaleB'] = 0
-                pprint(par)
                 exit_list.append(par)
     return exit_list
 
@@ -220,7 +222,6 @@ def feel_req_list(p_list: list):
         LSB = ((address & 0xFF00) >> 8)
         sub_index = address & 0xFF
         data = [0x40, LSB, MSB, sub_index, 0, 0, 0, 0]
-        pprint(data)
         req_list.append(data)
     return req_list
 
@@ -258,19 +259,19 @@ def fill_vmu_params_values(ans_list: list):
             value = (message[7] << 24) + \
                     (message[6] << 16) + \
                     (message[5] << 8) + message[4]
-
-            print(par['name'])
-            for j in message:
-                print(hex(j), end=' ')
+            #  вывод на печать полученных ответов
+            # print(par['name'])
+            # for j in message:
+            #     print(hex(j), end=' ')
             # если множителя нет, то берём знаковое int16
             if par['scale'] == 1:
                 par['value'] = ctypes.c_int16(value).value
             # возможно, здесь тоже нужно вытаскивать знаковое int, ага, int32
             else:
                 value = ctypes.c_int32(value).value
-                print(' = ' + str(value), end=' ')
+                # print(' = ' + str(value), end=' ')
                 par['value'] = (value / par['scale'])
-                print(' = ' + str(par['value']))
+                # print(' = ' + str(par['value']))
             par['value'] = float('{:.2f}'.format(par['value']))
         i += 1
     print('Новые параметры КВУ записаны ')
@@ -599,11 +600,12 @@ class VMUSaveToFileThread(QObject):
                     data_string.append(par['value'])
                 data.append(data_string)
                 df = pandas.DataFrame(data, columns=columns)
-                df.to_csv(self.recording_file_name,
-                          mode='a',
-                          index=False,
-                          header=False,
-                          encoding='windows-1251')
+                append_df_to_excel(self.recording_file_name, df)
+                # df.to_csv(self.recording_file_name,
+                #             mode='a',
+                #             index=False,
+                #             header=False,
+                #             encoding='windows-1251')
             #  Получаю новые параметры от КВУ
             ans_list = []
             answer = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
@@ -658,7 +660,8 @@ class ExampleApp(QtWidgets.QMainWindow, CANAnalyzer_ui.Ui_MainWindow):
         # если в списке строка - нахер такой список, похоже, нас отсоединили
         # но бывает, что параметр не прилетел в первый пункт списка, тогда нужно проверить,
         # что хотя бы два пункта списка - строки( или придумать более изощерённую проверку)
-        if len(list_of_params) == 1 or (isinstance(list_of_params[0], str) and isinstance(list_of_params[1], str)):
+        if len(list_of_params) == 1:  # or (isinstance(list_of_params[0], str) and isinstance(list_of_params[1],
+            # str)):
             window.connect_vmu_btn.setText('Подключиться')
             window.connect_vmu_btn.setEnabled(True)
             window.start_record.setText('Запись')
