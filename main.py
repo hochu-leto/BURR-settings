@@ -147,6 +147,7 @@ def fill_vmu_list(file_name):
                     par['scale'] = 1
                 if str(par['scaleB']) == 'nan':
                     par['scaleB'] = 0
+                pprint(par)
                 exit_list.append(par)
     return exit_list
 
@@ -208,6 +209,7 @@ def feel_req_list(p_list: list):
         LSB = ((address & 0xFF00) >> 8)
         sub_index = address & 0xFF
         data = [0x40, LSB, MSB, sub_index, 0, 0, 0, 0]
+        pprint(data)
         req_list.append(data)
     return req_list
 
@@ -245,20 +247,19 @@ def fill_vmu_params_values(ans_list: list):
             value = (message[7] << 24) + \
                     (message[6] << 16) + \
                     (message[5] << 8) + message[4]
-            # если множителя нет, то берём знаковое int
+
             print(par['name'])
-            for i in message:
-                print(hex(i), end=' ')
-            print()
+            for j in message:
+                print(hex(j), end=' ')
+            # если множителя нет, то берём знаковое int16
             if par['scale'] == 1:
                 par['value'] = ctypes.c_int16(value).value
-            # возможно, здесь тоже нужно вытаскивать знаковое int
+            # возможно, здесь тоже нужно вытаскивать знаковое int, ага, int32
             else:
-                for i in message:
-                    print(hex(i), end=' ')
-                print()
-                par['value'] = ctypes.c_int32(value).value
-                par['value'] = (value / par['scale']) - par['scaleB']
+                value = ctypes.c_int32(value).value
+                print(' = ' + str(value), end=' ')
+                par['value'] = (value / par['scale'])
+                print(' = ' + str(par['value']))
             par['value'] = float('{:.2f}'.format(par['value']))
         i += 1
     print('Новые параметры КВУ записаны ')
