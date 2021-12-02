@@ -212,6 +212,14 @@ def start_btn_pressed():
         window.constantly_req_vmu_params.setChecked(False)
         window.constantly_req_vmu_params.setEnabled(True)
         window.connect_vmu_btn.setEnabled(True)
+        # Reading the csv file
+        file_name = window.vmu_req_thread.recording_file_name
+        df_new = pandas.read_csv(file_name)
+        file_name = file_name.replace('.csv', '.xlsx', 1)
+        # saving xlsx file
+        GFG = pandas.ExcelWriter(file_name)
+        df_new.to_excel(GFG, index=False)
+        GFG.save()
 
 
 def feel_req_list(p_list: list):
@@ -600,12 +608,12 @@ class VMUSaveToFileThread(QObject):
                     data_string.append(par['value'])
                 data.append(data_string)
                 df = pandas.DataFrame(data, columns=columns)
-                append_df_to_excel(self.recording_file_name, df)
-                # df.to_csv(self.recording_file_name,
-                #             mode='a',
-                #             index=False,
-                #             header=False,
-                #             encoding='windows-1251')
+                # append_df_to_excel(self.recording_file_name, df)
+                df.to_csv(self.recording_file_name,
+                          mode='a',
+                          index=False,
+                          header=False,
+                          encoding='windows-1251')
             #  Получаю новые параметры от КВУ
             ans_list = []
             answer = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
