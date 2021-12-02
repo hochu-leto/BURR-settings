@@ -178,34 +178,28 @@ def const_req_vmu_params():
         window.thread_to_record.terminate()
 
 
+def adding_to_csv_file(name_or_value: str):
+    data = []
+    data_string = []
+    for par in vmu_params_list:
+        data_string.append(par[name_or_value])
+    data.append(data_string)
+    df = pandas.DataFrame(data)
+    df.to_csv(window.vmu_req_thread.recording_file_name,
+              mode='a',
+              header=False,
+              index=False,
+              encoding='windows-1251')
+
+
 def start_btn_pressed():
     if not window.record_vmu_params:
         window.constantly_req_vmu_params.setChecked(True)
         window.constantly_req_vmu_params.setEnabled(False)
         window.connect_vmu_btn.setEnabled(False)
-
         window.record_vmu_params = True
         window.start_record.setText('Стоп')
-        window.vmu_req_thread.recording_file_name = pathlib.Path(dir_path,
-                                                                 'VMU records',
-                                                                 'vmu_record_' +
-                                                                 datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") +
-                                                                 '.csv')
-        i = 0
-        column = []
-        data = []
-        data_string = []
-        for par in vmu_params_list:
-            column.append(i)
-            data_string.append(par['name'])
-            i += 1
-        data.append(data_string)
-        df = pandas.DataFrame(data, columns=column)
-        df.to_csv(window.vmu_req_thread.recording_file_name,
-                  mode='w',
-                  header=False,
-                  index=False,
-                  encoding='windows-1251')
+        adding_to_csv_file('name')
     else:
         window.record_vmu_params = False
         window.start_record.setText('Запись')
@@ -213,13 +207,16 @@ def start_btn_pressed():
         window.constantly_req_vmu_params.setEnabled(True)
         window.connect_vmu_btn.setEnabled(True)
         # Reading the csv file
-        file_name = window.vmu_req_thread.recording_file_name
-        df_new = pandas.read_csv(file_name)
-        file_name = file_name.replace('.csv', '.xlsx', 1)
+        file_name = str(window.vmu_req_thread.recording_file_name)
+        df_new = pandas.read_csv(file_name, encoding='windows-1251')
+        file_name = file_name.replace('.csv', '_excel.xlsx', 1)
         # saving xlsx file
         GFG = pandas.ExcelWriter(file_name)
         df_new.to_excel(GFG, index=False)
         GFG.save()
+        QMessageBox.information(window, "Успешный Успех", 'Файл с записью параметров КВУ\n' +
+                                'ищи в папке "VMU records"',
+                                QMessageBox.Ok)
 
 
 def feel_req_list(p_list: list):
@@ -600,20 +597,7 @@ class VMUSaveToFileThread(QObject):
     def run(self):
         while True:
             if window.record_vmu_params:
-                columns = []
-                data = []
-                data_string = []
-                for par in vmu_params_list:
-                    columns.append(par['name'])
-                    data_string.append(par['value'])
-                data.append(data_string)
-                df = pandas.DataFrame(data, columns=columns)
-                # append_df_to_excel(self.recording_file_name, df)
-                df.to_csv(self.recording_file_name,
-                          mode='a',
-                          index=False,
-                          header=False,
-                          encoding='windows-1251')
+                adding_to_csv_file('value')
             #  Получаю новые параметры от КВУ
             ans_list = []
             answer = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
@@ -892,28 +876,36 @@ for param in params_list:
         prev_name = param['name']
 
 marathon = CANMarathon()
+# для релиза отключу панель настройки рулевых реек
+window.burr30.setEnabled(False)
+# первое подключение и последующее обновление текущего вида параметров - второе работает не очень
+window.pushButton_2.clicked.connect(update_param)
+# переключение между задним и передним блоком
 window.radioButton.toggled.connect(rb_clicked)
 window.radioButton_2.toggled.connect(rb_clicked)
-
+# сохранение всех параметров из текущей рейки в файл
+window.pushButton.clicked.connect(save_all_params)
+# изменение параметра рейки ведёт к сохранению
 window.params_table.itemChanged.connect(window.save_item)
 window.params_table_2.itemChanged.connect(window.save_item)
-window.vmu_param_table.itemChanged.connect(check_connection)
-
-window.pushButton.clicked.connect(save_all_params)
-window.pushButton_2.clicked.connect(update_param)
 
 window.list_bookmark.setCurrentRow(0)
+#  заполняю все таблицы пустыми параметрами
+# заглушка
+window.vmu_param_table.itemChanged.connect(check_connection)
 show_empty_params_list(bookmark_dict[window.list_bookmark.currentItem().text()], 'params_table')
 show_empty_params_list(editable_params_list, 'params_table_2')
 show_empty_params_list(vmu_params_list, 'vmu_param_table')
+# параметры КВУ только для просмотра, поэтому отключаю их изменение - оно для всех подключается в функции заполнения
 window.vmu_param_table.itemChanged.disconnect()
-reg_ex_2 = QRegExp("[0-9]{1,5}")
-window.response_time_edit.setValidator(QRegExpValidator(reg_ex_2))
-window.response_time_edit.setText('1000')
-
+#  щелчок на списке групп параметров ведёт к выводу этих параметров
 window.list_bookmark.itemClicked.connect(window.list_of_params_table)
 window.params_table.resizeColumnsToContents()
+window.load_file_button.clicked.connect(make_compare_list)
+window.load_to_device_button.clicked.connect(write_all_from_file_to_device)
 
+#  часто используемые
+# выставляю в нули слайдеры и их метки
 for name, par in often_used_params.items():
     slider = getattr(window, name)
     slider.setMinimum(par['min'] * par['scale'])
@@ -926,18 +918,21 @@ for name, par in often_used_params.items():
 
     label = getattr(window, 'lab_' + name)
     label.setText(str(par['min']) + par['unit'])
-
+# изменение текущего блока на противоположный - работает паршиво - нет заводского режима
 window.set_front_wheel_rb.toggled.connect(window.setting_current_wheel)
 window.set_rear_wheel_rb.toggled.connect(window.setting_current_wheel)
-
+# изменение порядка следования байт - работает тоже паршиво
 window.rb_big_endian.toggled.connect(window.set_byte_order)
 window.rb_little_endian.toggled.connect(window.set_byte_order)
 
-window.load_file_button.clicked.connect(make_compare_list)
-window.load_to_device_button.clicked.connect(write_all_from_file_to_device)
+# главные кнопки для КВУ
 window.connect_vmu_btn.clicked.connect(connect_vmu)
 window.start_record.clicked.connect(start_btn_pressed)
 window.constantly_req_vmu_params.toggled.connect(const_req_vmu_params)
+# в окошке с задержкой опроса могут быть только цифры
+reg_ex_2 = QRegExp("[0-9]{1,5}")
+window.response_time_edit.setValidator(QRegExpValidator(reg_ex_2))
+window.response_time_edit.setText('1000')
 window.response_time_edit.textEdited.connect(check_response_time)
 window.select_file_vmu_params.clicked.connect(make_vmu_params_list)
 

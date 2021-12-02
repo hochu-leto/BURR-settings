@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QApplication
 from dll_power import CANMarathon
 import pandas as pandas
 
-from main import ExampleApp
+from VMU_Logger import ExampleApp
 
 app = QApplication([])
 window = ExampleApp()  # Создаём объект класса ExampleApp
