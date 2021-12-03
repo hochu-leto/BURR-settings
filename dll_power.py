@@ -1,4 +1,5 @@
 import ctypes
+import pathlib
 from ctypes import *
 
 # /*
@@ -18,6 +19,7 @@ from ctypes import *
 # define ECIINTR    11           /* call was interrupted by event */
 # define ECINORES   12           /* no resources */
 # define ECITOUT    13           /* time out occured */
+from datetime import datetime
 
 error_codes = {
     65535 - 1: 'generic (not specified) error',
@@ -120,6 +122,11 @@ class CANMarathon:
         self.lib = cdll.LoadLibrary(r"C:\Program Files (x86)\CHAI-2.14.0\x64\chai.dll")
         self.lib.CiInit()
         self.can_canal_number = 0
+        self.log_file = pathlib.Path(pathlib.Path.cwd(),
+                                     'Marathon logs',
+                                     'log_marathon_' +
+                                     datetime.now().strftime("%Y-%m-%d_%H-%M") +
+                                     '.txt')
 
     def canal_open(self):
         result = -1
@@ -129,6 +136,7 @@ class CANMarathon:
                                      0x2 | 0x4)  # 0x2 | 0x4 - это приём 11bit и 29bit заголовков
         except Exception as e:
             print('CiOpen do not work')
+            # logging.
             pprint(e)
             exit()
         # else:

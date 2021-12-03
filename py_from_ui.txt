@@ -1,1 +1,4 @@
+# py файл из ui
 pyuic5 CANAnalyzer_2.ui -o CANAnalyzer_ui.py
+# exe файл из py
+pyinstaller --noconsole --noconfirm -i "favicon.ico" VMU_Logger.py
