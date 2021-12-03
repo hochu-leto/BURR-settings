@@ -133,19 +133,6 @@ class CANMarathon:
             exit()
         # else:
         #     print('в CiOpen так ' + str(result))
-            # # если канал занят, переключусь на другой канал
-            #   не работает - если RTCON или CANwise висят на одном канале, второй канал не получается открыть
-            # if result == 65535 or result == 65526:
-            #     self.can_canal_number = 1
-            #     try:
-            #         result = self.lib.CiOpen(self.can_canal_number,
-            #                                  0x2 | 0x4)  # 0x2 | 0x4 - это приём 11bit и 29bit заголовков
-            #     except Exception as e:
-            #         print('CiOpen do not work')
-            #         pprint(e)
-            #         exit()
-            #     else:
-            #         print('в CiOpen так ' + str(result))
 
         if result != 0:
             self.lib.CiInit()

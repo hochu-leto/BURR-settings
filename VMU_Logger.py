@@ -30,6 +30,11 @@
  если он превышать треть от длины всего списка, - значит нас отключили) - реализовал в dll_power
 - ограничить число записываемых параметров не более 50 штук, если в файле больше - брать только первые 50,
  либо предлагать выбрать другой файл
+
+- добавить время в файл параметров кву
+dt = datetime.now()
+print(dt.microsecond)
+dt.strftime("%H:%M:%S.%f")
 """
 import ctypes
 import datetime
@@ -183,6 +188,11 @@ def adding_to_csv_file(name_or_value: str):
     data_string = []
     for par in vmu_params_list:
         data_string.append(par[name_or_value])
+    dt = datetime.datetime.now()
+    dt = dt.strftime("%H:%M:%S.%f")
+    if name_or_value == 'name':
+        dt = 'time'
+    data_string.append(dt)
     data.append(data_string)
     df = pandas.DataFrame(data)
     df.to_csv(window.vmu_req_thread.recording_file_name,
@@ -193,13 +203,20 @@ def adding_to_csv_file(name_or_value: str):
 
 
 def start_btn_pressed():
+    # если записи параметров ещё нет, включаю ее
     if not window.record_vmu_params:
+        window.vmu_req_thread.recording_file_name = pathlib.Path(pathlib.Path.cwd(),
+                                           'VMU records',
+                                           'vmu_record_' +
+                                           datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") +
+                                           '.csv')
         window.constantly_req_vmu_params.setChecked(True)
         window.constantly_req_vmu_params.setEnabled(False)
         window.connect_vmu_btn.setEnabled(False)
         window.record_vmu_params = True
         window.start_record.setText('Стоп')
         adding_to_csv_file('name')
+    #  если запись параметров ведётся, отключаю её и сохраняю файл
     else:
         window.record_vmu_params = False
         window.start_record.setText('Запись')
@@ -587,12 +604,7 @@ def save_all_params():
 class VMUSaveToFileThread(QObject):
     running = False
     new_vmu_params = pyqtSignal(list)
-    recording_file_name = pathlib.Path(pathlib.Path.cwd(),
-                                       'VMU records',
-                                       'vmu_record_' +
-                                       datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") +
-                                       '.csv')
-
+    recording_file_name = ''
     # метод, который будет выполнять алгоритм в другом потоке
     def run(self):
         while True:
@@ -876,7 +888,8 @@ for param in params_list:
         prev_name = param['name']
 
 marathon = CANMarathon()
-# для релиза отключу панель настройки рулевых реек
+# для релиза отключу панель настройки рулевых реек и кнопку выбора файла параметров для КВУ
+window.select_file_vmu_params.setEnabled(False)
 window.burr30.setEnabled(False)
 # первое подключение и последующее обновление текущего вида параметров - второе работает не очень
 window.pushButton_2.clicked.connect(update_param)
