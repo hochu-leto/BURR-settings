@@ -267,6 +267,7 @@ class CANMarathon:
             else:
                 print('   в CiTransmit так ' + str(transmit_ok))
             if transmit_ok == 0:
+
                 self.lib.CiStop(self.can_canal_number)
                 self.lib.CiClose(self.can_canal_number)
                 return ''
