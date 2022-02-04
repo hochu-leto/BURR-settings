@@ -110,6 +110,7 @@ class CANMarathon:
         ]
 
     max_iteration = 10
+    is_canal_open = False
 
     class Request(Structure):
         _fields_ = [
@@ -119,6 +120,7 @@ class CANMarathon:
         ]
 
     def __init__(self):
+        # КОСЯК!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         self.lib = cdll.LoadLibrary(r"C:\Program Files (x86)\CHAI-2.14.0\x64\chai.dll")
         self.lib.CiInit()
         self.can_canal_number = 0
@@ -174,11 +176,12 @@ class CANMarathon:
         #     print('  в CiStart так ' + str(open_canal))
 
         if open_canal != 0:
+            self.is_canal_open = False
             if result in error_codes.keys():
                 return error_codes[result]
             else:
                 return str(result)
-
+        self.is_canal_open = True
         return ''
 
     def check_connection(self):
@@ -279,6 +282,13 @@ class CANMarathon:
             return str(transmit_ok)
 
     def can_request(self, can_id_req: int, can_id_ans: int, message: list):
+
+        if not self.is_canal_open:
+            c_open = self.canal_open()
+            if c_open:
+                return c_open
+
+        transmit_ok = 0
         array_cw = self.Cw * 1
         cw = array_cw((self.can_canal_number, 0x01, 0))  # 0x1 | 0x4 - это wflags - флаги интересующих нас событий
         #  = количество кадров в приемной очереди стало больше или равно значению порога + ошибка сети
@@ -296,10 +306,6 @@ class CANMarathon:
             buffer.flags = 0
         self.lib.CiTransmit.argtypes = [ctypes.c_int8, ctypes.POINTER(self.Buffer)]
 
-        c_open = self.canal_open()
-        if c_open:
-            return c_open
-
         for i in range(self.max_iteration):
             try:
                 transmit_ok = self.lib.CiTransmit(self.can_canal_number, ctypes.pointer(buffer))
@@ -312,6 +318,9 @@ class CANMarathon:
             if transmit_ok == 0:
                 break
         if transmit_ok < 0:
+            self.lib.CiStop(self.can_canal_number)
+            self.lib.CiClose(self.can_canal_number)
+            self.is_canal_open = False
             if transmit_ok in error_codes.keys():
                 return error_codes[transmit_ok]
             else:
@@ -323,8 +332,8 @@ class CANMarathon:
             print('msg_zero do not work')
             pprint(e)
             exit()
-        else:
-            print('    в msg_zero так ' + str(result))
+        # else:
+        #     print('    в msg_zero так ' + str(result))
 
         for itr_global in range(self.max_iteration):
             try:
@@ -333,63 +342,57 @@ class CANMarathon:
                 print('CiRcQueCancel do not work')
                 pprint(e)
                 exit()
-            else:
-                print('     в CiRcQueCancel так ' + str(result))
+            # else:
+            #     print('     в CiRcQueCancel так ' + str(result))
 
             ret = 0
             can_read = 0
-            # while ret <= 0:  # если адаптер подключен к юсб но не подключен к КАНу - здесь возникает вечный Цикл
-            # for itr in range(self.max_iteration):
+
             try:
                 ret = self.lib.CiWaitEvent(ctypes.pointer(cw), 1, 1000)  # timeout = 1000 миллисекунд
             except Exception as e:
                 print('CiWaitEvent do not work')
                 pprint(e)
                 exit()
-            else:
-                print('      в CiWaitEvent так ' + str(ret))
+            # else:
+            #     print('      в CiWaitEvent так ' + str(ret))
 
-            # if ret > 0:
-            #     break
-            # if ret <= 0:
-            #     print(' It seems like there is no CAN bus here')
-            #     return False
             if ret > 0 and cw[0].wflags & 0x01:  # количество кадров в приемной очереди стало больше
-                # или равно значению порога
+                                                 # или равно значению порога
                 try:
                     can_read = self.lib.CiRead(self.can_canal_number, ctypes.pointer(buffer), 1)
                 except Exception as e:
                     print('CiRead do not work')
                     pprint(e)
                     exit()
-                else:
-                    print('       в CiRead так ' + str(can_read))
-                print('Принято сообщение с ID  ' + hex(buffer.id))
+                # else:
+                #     print('       в CiRead так ' + str(can_read))
+                # print('Принято сообщение с ID  ' + hex(buffer.id))
                 if can_read >= 0:
                     if can_id_ans == buffer.id:  # попался нужный ид
-                        print('Iteration = ' + str(itr_global))
-                        print(hex(buffer.id), end='    ')
-                        for i in range(buffer.len):
-                            print(hex(buffer.data[i]), end=' ')
-                        print()
-
-                        try:
-                            result = self.lib.CiStop(self.can_canal_number)
-                        except Exception as e:
-                            print('CiStop do not work')
-                            pprint(e)
-                            exit()
-                        else:
-                            print('      в CiStop так ' + str(result))
-
-                        try:
-                            result = self.lib.CiClose(self.can_canal_number)
-                        except Exception as e:
-                            print('CiClose do not work')
-                            pprint(e)
-                            exit()
-                        else:
-                            print('       в CiClose так ' + str(result))
+                        # print('Iteration = ' + str(itr_global))
+                        # print(hex(buffer.id), end='    ')
+                        # for i in range(buffer.len):
+                        #     print(hex(buffer.data[i]), end=' ')
+                        # print()
+                        #
+                        # try:
+                        #     result = self.lib.CiStop(self.can_canal_number)
+                        # except Exception as e:
+                        #     print('CiStop do not work')
+                        #     pprint(e)
+                        #     exit()
+                        # else:
+                        #     print('      в CiStop так ' + str(result))
+                        #
+                        # try:
+                        #     result = self.lib.CiClose(self.can_canal_number)
+                        # except Exception as e:
+                        #     print('CiClose do not work')
+                        #     pprint(e)
+                        #     exit()
+                        # else:
+                        #     print('       в CiClose так ' + str(result))
 
                         return buffer.data
                     else:
@@ -401,6 +404,7 @@ class CANMarathon:
                 print(' Нет события или нет нового байта')
         self.lib.CiStop(self.can_canal_number)
         self.lib.CiClose(self.can_canal_number)
+        self.is_canal_open = False
         if ret in error_codes.keys():
             return error_codes[ret]
         else:
@@ -572,6 +576,7 @@ class CANMarathon:
             exit()
         # else:
         #     print('       в CiClose так ' + str(result))
+        self.is_canal_open = False
 
 
 if __name__ == "__main__":
