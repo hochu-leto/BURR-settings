@@ -27,7 +27,8 @@ error_codes = {
     65535 - 3: 'memory fault',
     65535 - 4: "function can't be called for chip in current state",
     65535 - 5: "invalid call, function can't be called for this object",
-    65535 - 6: 'invalid parameter',
+    65535 - 6: 'invalid parameter - номер канала, переданный в качестве параметра, выходит за '
+               'пределы поддерживаемого числа каналов, либо канал не был открыт;',
     65535 - 7: 'can not access resource',
     65535 - 8: 'function or feature not implemented',
     65535 - 9: 'Адаптер не подключен',  # input/output error
@@ -370,30 +371,6 @@ class CANMarathon:
                 # print('Принято сообщение с ID  ' + hex(buffer.id))
                 if can_read >= 0:
                     if can_id_ans == buffer.id:  # попался нужный ид
-                        # print('Iteration = ' + str(itr_global))
-                        # print(hex(buffer.id), end='    ')
-                        # for i in range(buffer.len):
-                        #     print(hex(buffer.data[i]), end=' ')
-                        # print()
-                        #
-                        # try:
-                        #     result = self.lib.CiStop(self.can_canal_number)
-                        # except Exception as e:
-                        #     print('CiStop do not work')
-                        #     pprint(e)
-                        #     exit()
-                        # else:
-                        #     print('      в CiStop так ' + str(result))
-                        #
-                        # try:
-                        #     result = self.lib.CiClose(self.can_canal_number)
-                        # except Exception as e:
-                        #     print('CiClose do not work')
-                        #     pprint(e)
-                        #     exit()
-                        # else:
-                        #     print('       в CiClose так ' + str(result))
-
                         return buffer.data
                     else:
                         print(' Не тот ИД')
@@ -402,9 +379,7 @@ class CANMarathon:
                     ret = can_read
             else:
                 print(' Нет события или нет нового байта')
-        self.lib.CiStop(self.can_canal_number)
-        self.lib.CiClose(self.can_canal_number)
-        self.is_canal_open = False
+        self.close_marathon_canal()
         if ret in error_codes.keys():
             return error_codes[ret]
         else:
@@ -534,7 +509,6 @@ class CANMarathon:
                             # добавляю в список новую строку и прехожу к следующей итерации
                             byte_list = []
                             for i in range(buffer.len):
-                                #  byte_list.append(c_uint8(buffer.data[i]).value)
                                 byte_list.append(buffer.data[i])
                             answer_list.append(byte_list)
                             err = ''
