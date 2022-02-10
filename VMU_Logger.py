@@ -566,16 +566,17 @@ def set_param(address: int, value: int):
 def get_param(address):
     global wr_err
     data = 'OK'
-    wr_err = marathon.check_connection()
-    if wr_err:
-        QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + wr_err, QMessageBox.Ok)
-        return False
+    # wr_err = marathon.check_connection()
+    # if not marathon.is_canal_open:
+    #     QMessageBox.critical(window, "Ошибка ", 'Нет подключения', QMessageBox.Ok)
+    #     return False
     request_iteration = 3
     address = int(address)
     LSB = address & 0xFF
     MSB = ((address & 0xFF00) >> 8)
-    for i in range(request_iteration):  # на случай если не удалось с первого раза поймать параметр,
-        # делаем ещё request_iteration запросов
+    # на случай если не удалось с первого раза поймать параметр,
+    # делаем ещё request_iteration запросов
+    for i in range(request_iteration):
         data = marathon.can_request(current_wheel, current_wheel + 2, [0, 0, 0, 0, LSB, MSB, 0x2B, 0x03])
         if not isinstance(data, str):
             return (data[1] << 8) + data[0]
@@ -873,7 +874,6 @@ app = QApplication([])
 window = ExampleApp()  # Создаём объект класса ExampleApp
 
 dir_path = str(pathlib.Path.cwd())
-print('Рабочая директория -   ' + dir_path)
 vmu_param_file = 'table_for_params.xlsx'
 vmu_params_list = fill_vmu_list(pathlib.Path(dir_path, 'Tables', vmu_param_file))
 # заполняю дату с адресами параметров из списка, который задаётся в файле
