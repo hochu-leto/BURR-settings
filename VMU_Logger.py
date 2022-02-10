@@ -564,12 +564,7 @@ def set_param(address: int, value: int):
 
 
 def get_param(address):
-    global wr_err
     data = 'OK'
-    # wr_err = marathon.check_connection()
-    # if not marathon.is_canal_open:
-    #     QMessageBox.critical(window, "Ошибка ", 'Нет подключения', QMessageBox.Ok)
-    #     return False
     request_iteration = 3
     address = int(address)
     LSB = address & 0xFF
@@ -580,8 +575,7 @@ def get_param(address):
         data = marathon.can_request(current_wheel, current_wheel + 2, [0, 0, 0, 0, LSB, MSB, 0x2B, 0x03])
         if not isinstance(data, str):
             return (data[1] << 8) + data[0]
-    wr_err = "can't read answer"
-    QMessageBox.critical(window, "Ошибка ", wr_err + '\n' + data, QMessageBox.Ok)
+    QMessageBox.critical(window, "Ошибка ", 'Нет подключения\n' + data, QMessageBox.Ok)
     return False
 
 

@@ -118,7 +118,6 @@ class CANMarathon:
         ]
 
     def __init__(self):
-        # КОСЯК!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         self.lib = cdll.LoadLibrary(r"Marathon Driver and dll\chai.dll")
         # (r"C:\Program Files (x86)\CHAI-2.14.0\x64\chai.dll")
         self.lib.CiInit()
@@ -133,6 +132,7 @@ class CANMarathon:
 
     def canal_open(self):
         result = -1
+
         try:
             result = self.lib.CiOpen(self.can_canal_number,
                                      0x2 | 0x4)  # 0x2 | 0x4 - это приём 11bit и 29bit заголовков
@@ -144,46 +144,37 @@ class CANMarathon:
         else:
             print('в CiOpen так ' + str(result))
 
-        if result != 0:
-            self.lib.CiInit()
-            if result in error_codes.keys():
-                return error_codes[result]
+        if result == 0:
+            try:
+                result = self.lib.CiSetBaud(self.can_canal_number,
+                                            0x03, 0x1c)  # 0x03, 0x1c это скорость CAN BCI_125K
+                                                         # 0x00, 0x1c это скорость CAN BCI_500К
+            except Exception as e:
+                print('CiSetBaud do not work')
+                pprint(e)
+                exit()
             else:
-                return str(result)
+                print(' в CiSetBaud так ' + str(result))
 
-        try:
-            result = self.lib.CiSetBaud(self.can_canal_number, 0x03, 0x1c)  # 0x03, 0x1c это скорость CAN BCI_125K
-        except Exception as e:  # 0x00, 0x1c это скорость CAN BCI_500K
-            print('CiSetBaud do not work')
-            pprint(e)
-            exit()
+            if result == 0:
+                try:
+                    result = self.lib.CiStart(self.can_canal_number)
+                except Exception as e:
+                    print('CiStart do not work')
+                    pprint(e)
+                    exit()
+                else:
+                    print('  в CiStart так ' + str(result))
+
+                if result == 0:
+                    self.is_canal_open = True
+                    return ''
+
+        self.is_canal_open = False
+        if result in error_codes.keys():
+            return error_codes[result]
         else:
-            print(' в CiSetBaud так ' + str(result))
-
-        if result != 0:
-            if result in error_codes.keys():
-                return error_codes[result]
-            else:
-                return str(result)
-
-        try:
-            result = self.lib.CiStart(self.can_canal_number)
-        except Exception as e:
-            print('CiStart do not work')
-            pprint(e)
-            exit()
-        else:
-            print('  в CiStart так ' + str(result))
-
-        if result != 0:
-            self.is_canal_open = False
-            if result in error_codes.keys():
-                return error_codes[result]
-            else:
-                return str(result)
-
-        self.is_canal_open = True
-        return ''
+            return str(result)
 
     def check_connection(self):
         effort = self.canal_open()
@@ -357,7 +348,7 @@ class CANMarathon:
                 print('     в CiRcQueCancel так ' + str(result))
 
             try:
-                result = self.lib.CiWaitEvent(ctypes.pointer(cw), 1, 1000)  # timeout = 1000 миллисекунд
+                result = self.lib.CiWaitEvent(ctypes.pointer(cw), 1, 300)  # timeout = 1000 миллисекунд
             except Exception as e:
                 print('CiWaitEvent do not work')
                 pprint(e)
@@ -399,7 +390,6 @@ class CANMarathon:
         #  выход из цикла попыток
         self.close_marathon_canal()
         return err
-
 
     def can_request_many(self, can_id_req: int, can_id_ans: int, messages: list):
         # проверяю что канал Марафона открывается
