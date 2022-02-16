@@ -42,7 +42,7 @@
     </size>
    </property>
    <layout class="QGridLayout" name="gridLayout_2">
-    <item row="0" column="0">
+    <item row="1" column="0">
      <widget class="QTabWidget" name="CAN">
       <property name="enabled">
        <bool>true</bool>
@@ -842,13 +842,6 @@
                </item>
               </layout>
              </item>
-             <item>
-              <widget class="QPushButton" name="show_btn">
-               <property name="text">
-                <string>push me</string>
-               </property>
-              </widget>
-             </item>
             </layout>
            </widget>
           </item>
@@ -871,7 +864,7 @@
       </widget>
       <widget class="QWidget" name="Wait_for_read">
        <property name="enabled">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="sizePolicy">
         <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
@@ -914,6 +907,16 @@
          </widget>
         </item>
         <item>
+         <widget class="QPushButton" name="close_btn">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="text">
+           <string>закройся</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QLabel" name="label_3">
           <property name="font">
            <font>
@@ -937,6 +940,13 @@
         </item>
        </layout>
       </widget>
+     </widget>
+    </item>
+    <item row="0" column="0">
+     <widget class="QPushButton" name="show_btn">
+      <property name="text">
+       <string>push me</string>
+      </property>
      </widget>
     </item>
    </layout>

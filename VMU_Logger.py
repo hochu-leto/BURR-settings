@@ -125,6 +125,20 @@ rtcon_vmu = 0x1850460E
 vmu_rtcon = 0x594
 
 
+def show_waiting_tab():
+    window.recent_tab = window.CAN.currentWidget()
+    # window.CAN.setEnabled(False)
+    window.CAN.addTab(window.hidden_tab, '')
+    window.CAN.setCurrentWidget(window.Wait_for_read)
+
+
+def hide_waiting_tab():
+    window.CAN.removeTab(window.CAN.currentIndex())
+    window.CAN.setCurrentWidget(window.recent_tab)
+    window.CAN.setEnabled(True)
+
+
+
 def make_vmu_params_list():
     fname = QFileDialog.getOpenFileName(window, 'Файл с нужными параметрами КВУ', dir_path,
                                         "Excel tables (*.xlsx)")[0]
@@ -443,10 +457,6 @@ def show_empty_params_list(list_of_params: list, table: str):
         row += 1
     show_table.resizeColumnsToContents()
     show_table.itemChanged.connect(window.save_item)
-
-
-def show_tab():
-    window.CAN.addTab(window.hidden_tab, '')
 
 def update_param():
     if get_param(42):  # проверка что есть связь с блоком
@@ -959,11 +969,11 @@ window.response_time_edit.setValidator(QRegExpValidator(reg_ex_2))
 window.response_time_edit.setText('1000')
 window.response_time_edit.textEdited.connect(check_response_time)
 window.select_file_vmu_params.clicked.connect(make_vmu_params_list)
-#window.CAN.setCurrentWidget(window.Wait_for_read)
 window.hidden_tab = window.Wait_for_read
 # window.hidden_tab_title = window.Wait_for_read.title
 
 window.CAN.removeTab(2) #hide()
-window.show_btn.clicked.connect(show_tab)
+window.show_btn.clicked.connect(show_waiting_tab)
+window.close_btn.clicked.connect(hide_waiting_tab)
 window.show()  # Показываем окно
 app.exec_()  # и запускаем приложение
