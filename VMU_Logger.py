@@ -127,7 +127,7 @@ vmu_rtcon = 0x594
 
 def show_waiting_tab():
     window.recent_tab = window.CAN.currentWidget()
-    # window.CAN.setEnabled(False)
+    window.CAN.setEnabled(False)
     window.CAN.addTab(window.hidden_tab, '')
     window.CAN.setCurrentWidget(window.Wait_for_read)
 
