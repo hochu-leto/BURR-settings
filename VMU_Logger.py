@@ -445,6 +445,9 @@ def show_empty_params_list(list_of_params: list, table: str):
     show_table.itemChanged.connect(window.save_item)
 
 
+def show_tab():
+    window.CAN.addTab(window.hidden_tab, '')
+
 def update_param():
     if get_param(42):  # проверка что есть связь с блоком
         if window.tab_burr.currentWidget() == window.often_used_params:
@@ -590,6 +593,7 @@ def get_all_params():
 
 def save_all_params():
     if get_all_params():
+        window.Wait_for_read.setFocus()
         file_name = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         file_name = 'Burr-30_' + file_name + '.xlsx'
         full_file_name = pathlib.Path(dir_path, 'Burr settings', file_name)
@@ -642,7 +646,7 @@ class VMUSaveToFileThread(QObject):
             QThread.msleep(response_time)
 
 
-class ExampleApp(QtWidgets.QMainWindow): #, CANAnalyzer_ui.Ui_MainWindow):
+class ExampleApp(QtWidgets.QMainWindow):
     name_col = 0
     desc_col = 1
     value_col = 3
@@ -955,6 +959,11 @@ window.response_time_edit.setValidator(QRegExpValidator(reg_ex_2))
 window.response_time_edit.setText('1000')
 window.response_time_edit.textEdited.connect(check_response_time)
 window.select_file_vmu_params.clicked.connect(make_vmu_params_list)
+#window.CAN.setCurrentWidget(window.Wait_for_read)
+window.hidden_tab = window.Wait_for_read
+# window.hidden_tab_title = window.Wait_for_read.title
 
+window.CAN.removeTab(2) #hide()
+window.show_btn.clicked.connect(show_tab)
 window.show()  # Показываем окно
 app.exec_()  # и запускаем приложение

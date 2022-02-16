@@ -20,6 +20,9 @@
    <string>Диагностика и настройка EVO1 </string>
   </property>
   <widget class="QWidget" name="centralwidget">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
    <property name="sizePolicy">
     <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
      <horstretch>0</horstretch>
@@ -44,11 +47,29 @@
       <property name="enabled">
        <bool>true</bool>
       </property>
+      <property name="focusPolicy">
+       <enum>Qt::NoFocus</enum>
+      </property>
+      <property name="contextMenuPolicy">
+       <enum>Qt::NoContextMenu</enum>
+      </property>
+      <property name="acceptDrops">
+       <bool>false</bool>
+      </property>
       <property name="tabShape">
        <enum>QTabWidget::Rounded</enum>
       </property>
       <property name="currentIndex">
        <number>1</number>
+      </property>
+      <property name="iconSize">
+       <size>
+        <width>20</width>
+        <height>20</height>
+       </size>
+      </property>
+      <property name="elideMode">
+       <enum>Qt::ElideRight</enum>
       </property>
       <widget class="QWidget" name="VMU">
        <attribute name="title">
@@ -821,6 +842,13 @@
                </item>
               </layout>
              </item>
+             <item>
+              <widget class="QPushButton" name="show_btn">
+               <property name="text">
+                <string>push me</string>
+               </property>
+              </widget>
+             </item>
             </layout>
            </widget>
           </item>
@@ -843,10 +871,19 @@
       </widget>
       <widget class="QWidget" name="Wait_for_read">
        <property name="enabled">
-        <bool>true</bool>
+        <bool>false</bool>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="autoFillBackground">
+        <bool>false</bool>
        </property>
        <attribute name="title">
-        <string> </string>
+        <string/>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_2">
         <item>
