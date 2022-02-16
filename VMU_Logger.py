@@ -973,7 +973,5 @@ window.hidden_tab = window.Wait_for_read
 # window.hidden_tab_title = window.Wait_for_read.title
 
 window.CAN.removeTab(2) #hide()
-window.show_btn.clicked.connect(show_waiting_tab)
-window.close_btn.clicked.connect(hide_waiting_tab)
 window.show()  # Показываем окно
 app.exec_()  # и запускаем приложение
