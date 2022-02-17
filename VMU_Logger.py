@@ -828,6 +828,7 @@ class ExampleApp(QtWidgets.QMainWindow):
 
     def save_item(self, item):
         table_param = QApplication.instance().sender()
+        table_param.itemChanged.disconnect()
         new_value = item.text()
         if new_value:
             name_param = table_param.item(item.row(), self.name_col).text()
@@ -837,12 +838,15 @@ class ExampleApp(QtWidgets.QMainWindow):
                 if str(address_param) != 'nan':
                     value = check_param(address_param, new_value)
                     if str(value) != 'nan':  # прошёл проверку
+                        table_param.item(item.row(), self.value_col).setSelected(False)
                         if set_param(address_param, value):
                             print('Checked changed value - OK')
                             table_param.item(item.row(), self.value_col).setBackground(QColor('green'))
                             return True
                         else:
                             table_param.item(item.row(), self.value_col).setBackground(QColor('red'))
+                            table_param.item(item.row(), self.value_col).setText(str(get_param(address_param)))
+
                             return False
                         # # ------------ЗДЕСЬ всё не так просто - надо разбираться как действовать при смене рейки
                         # if address_param == 35:  # если произошла смена рейки, нужно поменять адреса
@@ -869,6 +873,10 @@ class ExampleApp(QtWidgets.QMainWindow):
         else:
             err = 'Value is empty'
         QMessageBox.critical(window, "Ошибка ", err, QMessageBox.Ok)
+        table_param.item(item.row(), item.column()).setSelected(False)
+        table_param.item(item.row(),  item.column()).setBackground(QColor('red'))
+        table_param.itemChanged.connect(window.save_item)
+
         return False
 
 
