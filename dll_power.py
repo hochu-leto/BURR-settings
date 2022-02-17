@@ -36,7 +36,7 @@ error_codes = {
     65535 - 11: 'call was interrupted by event',
     65535 - 12: 'no resources',
     65535 - 13: 'time out occured',
-    65426: 'Адаптер не подключен'  # 65526
+    65526: 'Адаптер не подключен'  # 65526
 }
 
 from pprint import pprint

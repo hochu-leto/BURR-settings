@@ -13,6 +13,7 @@
 - расширить диапазон зоны нечувствительности до 0,05%
 - расширить диапазон токовый до 110А
 - сделать токовые слайдеры одинаковыми по максимуму и минимуму
+- сохраняет файл с настройками рейки даже если величин нет
 --------------------------------------------хотелки-------------------------
 - вместо блокировки любых нажатий использовать другой поток для опроса параметров
 - задел под парсинг файла с настройками от рткона
@@ -381,7 +382,7 @@ def check_connection():
 
 def show_value(col_value: int, list_of_params: list, table: str):
     if get_param(42):  # проверка что есть связь с блоком
-        global wr_err
+        show_waiting_tab()
         show_table = getattr(window, table)
         show_table.itemChanged.disconnect()
 
@@ -393,7 +394,6 @@ def show_value(col_value: int, list_of_params: list, table: str):
                 par['value'] = value
             else:
                 value = par['value']
-            print(value)
 
             value_Item = QTableWidgetItem(str(value))
 
@@ -412,6 +412,7 @@ def show_value(col_value: int, list_of_params: list, table: str):
             row += 1
         show_table.resizeColumnsToContents()
         show_table.itemChanged.connect(window.save_item)
+        hide_waiting_tab()
     marathon.close_marathon_canal()
 
 
@@ -435,10 +436,6 @@ def show_empty_params_list(list_of_params: list, table: str):
 
         if par['address']:
             if str(par['address']) != 'nan':
-                # if isinstance(par['address'], str):
-                #     if '0x' in par['address']:
-                #         par['address'] = par['address'].rsplit('x')[1]
-                #     par['address'] = int(par['address'], 16)
                 adr = hex(round(par['address']))
             else:
                 adr = ''
@@ -458,6 +455,7 @@ def show_empty_params_list(list_of_params: list, table: str):
     show_table.resizeColumnsToContents()
     show_table.itemChanged.connect(window.save_item)
 
+
 def update_param():
     if get_param(42):  # проверка что есть связь с блоком
         if window.tab_burr.currentWidget() == window.often_used_params:
@@ -465,6 +463,7 @@ def update_param():
         elif window.tab_burr.currentWidget() == window.editable_params:
             # я зачем-то раньше обновлял пустой список, сейчас это не нужно
             # show_empty_params_list(editable_params_list, 'params_table_2')
+            param_list_clear()
             show_value(window.value_col, editable_params_list, 'params_table_2')
             if compare_param_dict:
                 show_compare_list(compare_param_dict)
@@ -591,19 +590,18 @@ def get_param(address):
 
 def get_all_params():
     if get_param(42):
+        show_waiting_tab()
         for param in params_list:
             if str(param['address']) != 'nan':
                 if str(param['value']) == 'nan':
                     param['value'] = get_param(address=int(param['address']))
-    if not wr_err:
+        hide_waiting_tab()
         return True
-    print(wr_err)
     return False
 
 
 def save_all_params():
     if get_all_params():
-        window.Wait_for_read.setFocus()
         file_name = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         file_name = 'Burr-30_' + file_name + '.xlsx'
         full_file_name = pathlib.Path(dir_path, 'Burr settings', file_name)
@@ -970,8 +968,7 @@ window.response_time_edit.setText('1000')
 window.response_time_edit.textEdited.connect(check_response_time)
 window.select_file_vmu_params.clicked.connect(make_vmu_params_list)
 window.hidden_tab = window.Wait_for_read
-# window.hidden_tab_title = window.Wait_for_read.title
-
-window.CAN.removeTab(2) #hide()
+# убираю вкладку с ожиданием
+window.CAN.removeTab(2)
 window.show()  # Показываем окно
 app.exec_()  # и запускаем приложение
