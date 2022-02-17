@@ -3,6 +3,8 @@
 - не обновляет параметры визуально
 - не закрывает канал после записи параметра
 - блокировать любые нажатия, пока опрашиваются параметры(- нет индикации работы когда считывает параметры)
+    не получается это сделать, потому что пока опрашиваются параметры внутри функции изображение формы изменить
+    невозможно. Что-то делается с формой только после выхода из функции - один выход -переходить на параллельные потоки
 - если изменилось дескрипшн - сохранять описание параметра в файл с дескрипшн
 - выбрасывает ошибку при установке задней или передней оси(- НЕ МОЖЕТ ПЕРЕКЛЮЧИТЬ РЕЙКУ С ЗАДНЕЙ НА ПЕРЕДНЮЮ)
 - в списке осей нет индикации заводской настройки
@@ -131,13 +133,13 @@ def show_waiting_tab():
     window.CAN.setEnabled(False)
     window.CAN.addTab(window.hidden_tab, '')
     window.CAN.setCurrentWidget(window.Wait_for_read)
+    window.show()
 
 
 def hide_waiting_tab():
     window.CAN.removeTab(window.CAN.currentIndex())
     window.CAN.setCurrentWidget(window.recent_tab)
     window.CAN.setEnabled(True)
-
 
 
 def make_vmu_params_list():
@@ -189,10 +191,6 @@ def fill_vmu_list(file_name):
     return exit_list
 
 
-def check_response_time(item):
-    pass
-
-
 def const_req_vmu_params():
     if not window.vmu_req_thread.running:
         window.vmu_req_thread.running = True
@@ -225,10 +223,10 @@ def start_btn_pressed():
     # если записи параметров ещё нет, включаю ее
     if not window.record_vmu_params:
         window.vmu_req_thread.recording_file_name = pathlib.Path(pathlib.Path.cwd(),
-                                           'VMU records',
-                                           'vmu_record_' +
-                                           datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") +
-                                           '.csv')
+                                                                 'VMU records',
+                                                                 'vmu_record_' +
+                                                                 datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") +
+                                                                 '.csv')
         window.constantly_req_vmu_params.setChecked(True)
         window.constantly_req_vmu_params.setEnabled(False)
         window.connect_vmu_btn.setEnabled(False)
@@ -318,6 +316,7 @@ def fill_vmu_params_values(ans_list: list):
     print('Новые параметры КВУ записаны ')
 
 
+# очень опасная процедура - надо очень пристально ее проверить
 def write_all_from_file_to_device():
     if get_param(42):  # проверка что есть связь с блоком
         window.params_table_2.itemChanged.disconnect()
@@ -381,8 +380,7 @@ def check_connection():
 
 
 def show_value(col_value: int, list_of_params: list, table: str):
-    if get_param(42):  # проверка что есть связь с блоком
-        show_waiting_tab()
+    if update_connect_button():  # проверка что есть связь с блоком
         show_table = getattr(window, table)
         show_table.itemChanged.disconnect()
 
@@ -412,7 +410,6 @@ def show_value(col_value: int, list_of_params: list, table: str):
             row += 1
         show_table.resizeColumnsToContents()
         show_table.itemChanged.connect(window.save_item)
-        hide_waiting_tab()
     marathon.close_marathon_canal()
 
 
@@ -457,35 +454,39 @@ def show_empty_params_list(list_of_params: list, table: str):
 
 
 def update_param():
-    if get_param(42):  # проверка что есть связь с блоком
+    if update_connect_button():  # проверка что есть связь с блоком
         if window.tab_burr.currentWidget() == window.often_used_params:
             window.best_params()
         elif window.tab_burr.currentWidget() == window.editable_params:
             # я зачем-то раньше обновлял пустой список, сейчас это не нужно
-            # show_empty_params_list(editable_params_list, 'params_table_2')
             param_list_clear()
+            show_empty_params_list(editable_params_list, 'params_table_2')
             show_value(window.value_col, editable_params_list, 'params_table_2')
             if compare_param_dict:
                 show_compare_list(compare_param_dict)
         elif window.tab_burr.currentWidget() == window.all_params:
             param_list_clear()
-            window.list_of_params_table(window.list_bookmark.currentItem())
+            show_empty_params_list(bookmark_dict[window.list_bookmark.currentItem().text()], 'params_table')
+            show_value(window.value_col, window.list_bookmark.currentItem(), 'params_table')
+
+
+def update_connect_button():
+    software_version = get_param(42)
+    if software_version:
         window.pushButton_2.setText('Обновить')
         font = QtGui.QFont()
         font.setBold(False)
         window.pushButton_2.setFont(font)
-        window.groupBox_4.setEnabled(True)
-        window.set_current_wheel.setEnabled(True)
-        window.byte_order.setEnabled(True)
-    else:
-        window.pushButton_2.setText('Подключиться')
-        font = QtGui.QFont()
-        font.setBold(True)
-        window.pushButton_2.setFont(font)
-        window.groupBox_4.setEnabled(False)
-        window.set_current_wheel.setEnabled(False)
-        window.byte_order.setEnabled(False)
-    marathon.close_marathon_canal()
+        return software_version
+
+    window.pushButton_2.setText('Подключиться')
+    font = QtGui.QFont()
+    font.setBold(True)
+    window.pushButton_2.setFont(font)
+    window.groupBox_4.setEnabled(False)
+    window.set_current_wheel.setEnabled(False)
+    window.byte_order.setEnabled(False)
+    return False
 
 
 def param_list_clear():
@@ -542,33 +543,33 @@ def check_param(address: int, value):  # если новое значение - 
 
 def set_param(address: int, value: int):
     # Здесь всё нахрен надо исправить
-
-    global wr_err
-    wr_err = marathon.check_connection()
-    if wr_err:
-        QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + wr_err, QMessageBox.Ok)
-        return False
-
     address = int(address)
     value = int(value)
+    LSB = address & 0xFF
+    MSB = ((address & 0xFF00) >> 8)
     data = [value & 0xFF,
             ((value & 0xFF00) >> 8),
-            0, 0,
-            address & 0xFF,
-            ((address & 0xFF00) >> 8),
+            0, 0, LSB, MSB,
             0x2B, 0x10]
     print(' Trying to set param in address ' + str(address) + ' to new value ' + str(value))
-    effort = marathon.can_write(current_wheel, data)
-    if not effort:
-        print(f'Successfully updated param in address {address} into device')
-        for param in params_list:
-            if param['address'] == address:
-                param['value'] = value
-                print(f'Successfully written new value {value} in {param["name"]}')
-                return True
-    else:
-        wr_err = "can't write param into device"
-        QMessageBox.critical(window, "Ошибка ", wr_err + '\n' + effort, QMessageBox.Ok)
+    err = marathon.can_write(current_wheel, data)
+    if not err:
+        data = marathon.can_request(current_wheel, current_wheel + 2, [0, 0, 0, 0, LSB, MSB, 0x2B, 0x03])
+        if not isinstance(data, str):
+            data = ((data[1] << 8) + data[0])
+            if value == data:
+                print(f'Successfully updated param in address {address} into device')
+                for param in params_list:
+                    if param['address'] == address:
+                        param['value'] = value
+                        print(f'Successfully written new value {value} in {param["name"]}')
+                        return True
+                err = 'Не найден параметр в списке'
+            else:
+                err = f'Текущий параметр из устройства отличается от желаемого {value} <> {data}'
+        else:
+            err = data
+    QMessageBox.critical(window, "Ошибка ", err, QMessageBox.Ok)
     return False
 
 
@@ -590,12 +591,10 @@ def get_param(address):
 
 def get_all_params():
     if get_param(42):
-        show_waiting_tab()
         for param in params_list:
             if str(param['address']) != 'nan':
                 if str(param['value']) == 'nan':
                     param['value'] = get_param(address=int(param['address']))
-        hide_waiting_tab()
         return True
     return False
 
@@ -677,6 +676,7 @@ class ExampleApp(QtWidgets.QMainWindow):
         self.vmu_req_thread.new_vmu_params.connect(self.add_new_vmu_params)
         # подключим сигнал старта потока к методу run у объекта, который должен выполнять код в другом потоке
         self.thread_to_record.started.connect(self.vmu_req_thread.run)
+        self.hidden_tab = self.Wait_for_read
 
     @pyqtSlot(list)
     def add_new_vmu_params(self, list_of_params: list):
@@ -749,30 +749,30 @@ class ExampleApp(QtWidgets.QMainWindow):
         label = getattr(self, 'lab_' + param)
         label.setText(str(value) + often_used_params[param]['unit'])
 
+    # надо проверить эту функцию
     def set_slider(self, item):
         slider = QApplication.instance().sender()
         param = slider.objectName()
         item = slider.value()
         value = item / often_used_params[param]['scale']
         address = often_used_params[param]['address']
-        # print(f'New {param} is {item}')
         label = getattr(self, 'lab_' + param)
         label.setText(str(value) + often_used_params[param]['unit'])
         # надо сделать цикл раза три запихнуть параметр и проверить, если не получилось - предупреждение
         for i in range(marathon.max_iteration):
             if set_param(address, item):
-                check_value = get_param(address)
-                if check_value == item:
-                    print('Checked changed value - OK')
-                    label.setStyleSheet('background-color: green')
-                    return True
-                print(check_value)
+                print('Checked changed value - OK')
+                label.setStyleSheet('background-color: green')
+                return True
         QMessageBox.critical(window, "Ошибка ", 'Что-то пошло не по плану,\n данные не записались',
                              QMessageBox.Ok)
         label.setStyleSheet('background-color: red')
         return False
 
     def best_params(self):
+        window.groupBox_4.setEnabled(True)
+        window.set_current_wheel.setEnabled(True)
+        window.byte_order.setEnabled(True)
         self.lb_soft_version.setText('Версия ПО БУРР ' + str(get_param(42)))
 
         errors = get_param(0)
@@ -829,50 +829,47 @@ class ExampleApp(QtWidgets.QMainWindow):
     def save_item(self, item):
         table_param = QApplication.instance().sender()
         new_value = item.text()
-        if not new_value:
-            print('Value is empty')
-            return False
-
-        name_param = table_param.item(item.row(), self.name_col).text()
-        if item.column() == self.value_col:
-            address_param = get_address(name_param)
-            if str(address_param) != 'nan':
-                value = check_param(address_param, new_value)
-                if str(value) != 'nan':  # прошёл проверку
-                    for i in range(3):
+        if new_value:
+            name_param = table_param.item(item.row(), self.name_col).text()
+            # если изменили значение параметра
+            if item.column() == self.value_col:
+                address_param = get_address(name_param)
+                if str(address_param) != 'nan':
+                    value = check_param(address_param, new_value)
+                    if str(value) != 'nan':  # прошёл проверку
                         if set_param(address_param, value):
-                            check_value = get_param(address_param)
-                            if check_value == value:
-                                print('Checked changed value - OK')
-                                table_param.item(item.row(), self.value_col).setBackground(QColor('green'))
-                                return True
-                            else:
-                                table_param.item(item.row(), self.value_col).setBackground(QColor('red'))
+                            print('Checked changed value - OK')
+                            table_param.item(item.row(), self.value_col).setBackground(QColor('green'))
+                            return True
                         else:
-                            print("Can't write param into device")
-                    if address_param == 35:  # если произошла смена рейки, нужно поменять адреса
-                        if self.radioButton.isChecked():
-                            self.radioButton_2.setChecked()
-                        else:
-                            self.radioButton.setChecked()
-                        rb_clicked()
-                        return True
-                    return False
+                            table_param.item(item.row(), self.value_col).setBackground(QColor('red'))
+                            return False
+                        # # ------------ЗДЕСЬ всё не так просто - надо разбираться как действовать при смене рейки
+                        # if address_param == 35:  # если произошла смена рейки, нужно поменять адреса
+                        #     if self.radioButton.isChecked():
+                        #         self.radioButton_2.setChecked()
+                        #     else:
+                        #         self.radioButton.setChecked()
+                        #     rb_clicked()
+                        #     return True
+                        # return False
+                    else:
+                        err = "Param isn't in available range - не прошёл проверку check_param"
                 else:
-                    print("Param isn't in available range")
+                    err = "Can't find this value - не найден адрес параметра"
+            elif item.column() == self.desc_col:
+                for param in params_list:
+                    if name_param == str(param['name']):
+                        param['description'] = new_value
+                        # здесь должна быть функция по перезаписи исходного файла для дополнения дескрипшн
+                        return True
+                err = "Can't find this value - в списке параметров этот параметр не найден"
             else:
-                print("Can't find this value")
-            return False
-        elif item.column() == self.desc_col:
-            for param in params_list:
-                if name_param == str(param['name']):
-                    param['description'] = new_value
-                    return True
-            print("Can't find this value")
-            return False
+                err = "It's impossible!!! - действительно херня какая-то , не та колонка таблицы"
         else:
-            print("It's impossible!!!")
-            return False
+            err = 'Value is empty'
+        QMessageBox.critical(window, "Ошибка ", err, QMessageBox.Ok)
+        return False
 
 
 app = QApplication([])
@@ -965,9 +962,9 @@ window.constantly_req_vmu_params.toggled.connect(const_req_vmu_params)
 reg_ex_2 = QRegExp("[0-9]{1,5}")
 window.response_time_edit.setValidator(QRegExpValidator(reg_ex_2))
 window.response_time_edit.setText('1000')
-window.response_time_edit.textEdited.connect(check_response_time)
+# window.response_time_edit.textEdited.connect(check_response_time)
 window.select_file_vmu_params.clicked.connect(make_vmu_params_list)
-window.hidden_tab = window.Wait_for_read
+
 # убираю вкладку с ожиданием
 window.CAN.removeTab(2)
 window.show()  # Показываем окно

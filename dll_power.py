@@ -228,9 +228,10 @@ class CANMarathon:
             return str(ret)
 
     def can_write(self, can_id: int, message: list):
-        c_open = self.canal_open()
-        if c_open:
-            return c_open
+        if not self.is_canal_open:
+            err = self.canal_open()
+            if err:
+                return err
 
         buffer = self.Buffer()
 
@@ -246,35 +247,34 @@ class CANMarathon:
         if can_id > 0xFFF:
             buffer.flags = 4
             self.lib.msg_seteff(ctypes.pointer(buffer))
-        else:
-            buffer.flags = 0
 
         self.lib.CiTransmit.argtypes = [ctypes.c_int8, ctypes.POINTER(self.Buffer)]
+        err = -1
 
         for i in range(self.max_iteration):
             try:
-                transmit_ok = self.lib.CiTransmit(self.can_canal_number, ctypes.pointer(buffer))
+                err = self.lib.CiTransmit(self.can_canal_number, ctypes.pointer(buffer))
                 print(f'Trying to send in address {hex(buffer.id)} message {hex(buffer.data[0])} {hex(buffer.data[1])}')
             except Exception as e:
                 print('CiTransmit do not work')
                 pprint(e)
                 exit()
             else:
-                print('   в CiTransmit так ' + str(transmit_ok))
-            if transmit_ok == 0:
-                self.lib.CiStop(self.can_canal_number)
-                self.lib.CiClose(self.can_canal_number)
-                return ''
-        self.lib.CiStop(self.can_canal_number)
-        self.lib.CiClose(self.can_canal_number)
-        if transmit_ok in error_codes.keys():
-            return error_codes[transmit_ok]
-        else:
-            return str(transmit_ok)
+                print('   в CiTransmit так ' + str(err))
+
+        # здесь два варианта - или всё нормально передалось и transmit_ok == 0 или все попытки  неудачны и
+        self.close_marathon_canal()
+        if err < 0:
+            if err in error_codes.keys():
+                return error_codes[err]
+            else:
+                return str(err)
+        return ''
 
     def can_request(self, can_id_req: int, can_id_ans: int, message: list):
         # если канал закрыт, его нда открыть
         err = ''
+        print(self.is_canal_open)
         if not self.is_canal_open:
             err = self.canal_open()
             if err:
