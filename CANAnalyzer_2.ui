@@ -268,7 +268,7 @@
                  </sizepolicy>
                 </property>
                 <property name="editTriggers">
-                 <set>QAbstractItemView::NoEditTriggers</set>
+                 <set>QAbstractItemView::AllEditTriggers</set>
                 </property>
                 <property name="gridStyle">
                  <enum>Qt::SolidLine</enum>

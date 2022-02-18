@@ -381,9 +381,9 @@ def check_connection():
 
 
 def show_value(col_value: int, list_of_params: list, table: str):
+
     if update_connect_button():  # проверка что есть связь с блоком
         show_table = getattr(window, table)
-        show_table.itemChanged.disconnect()
 
         row = 0
 
@@ -405,18 +405,17 @@ def show_value(col_value: int, list_of_params: list, table: str):
             if str(par['strings']) != 'nan':
                 value_Item.setStatusTip(str(par['strings']))
                 value_Item.setToolTip(str(par['strings']))
-
+            show_table.itemChanged.disconnect()
             show_table.setItem(row, col_value, value_Item)
+            show_table.itemChanged.connect(window.save_item)
 
             row += 1
         show_table.resizeColumnsToContents()
-        show_table.itemChanged.connect(window.save_item)
     marathon.close_marathon_canal()
 
 
 def show_empty_params_list(list_of_params: list, table: str):
     show_table = getattr(window, table)
-    show_table.itemChanged.disconnect()
     show_table.setRowCount(0)
     show_table.setRowCount(len(list_of_params))
     row = 0
@@ -449,9 +448,13 @@ def show_empty_params_list(list_of_params: list, table: str):
         unit_Item.setFlags(unit_Item.flags() & ~Qt.ItemIsEditable)
         show_table.setItem(row, show_table.columnCount() - 1, unit_Item)
 
+        value_Item = QTableWidgetItem('')
+        value_Item.setFlags(value_Item.flags() & ~Qt.ItemIsEditable)
+        show_table.setItem(row, window.value_col, value_Item)
+
         row += 1
     show_table.resizeColumnsToContents()
-    show_table.itemChanged.connect(window.save_item)
+    # show_table.itemChanged.connect(window.save_item)
 
 
 def update_param():
@@ -461,18 +464,19 @@ def update_param():
         elif window.tab_burr.currentWidget() == window.editable_params:
             # я зачем-то раньше обновлял пустой список, сейчас это не нужно
             param_list_clear()
-            show_empty_params_list(editable_params_list, 'params_table_2')
+            # show_empty_params_list(editable_params_list, 'params_table_2')
             show_value(window.value_col, editable_params_list, 'params_table_2')
             if compare_param_dict:
                 show_compare_list(compare_param_dict)
         elif window.tab_burr.currentWidget() == window.all_params:
             param_list_clear()
-            show_empty_params_list(bookmark_dict[window.list_bookmark.currentItem().text()], 'params_table')
-            show_value(window.value_col, window.list_bookmark.currentItem(), 'params_table')
+            # show_empty_params_list(bookmark_dict[window.list_bookmark.currentItem().text()], 'params_table')
+            show_value(window.value_col, bookmark_dict[window.list_bookmark.currentItem().text()], 'params_table')
 
 
 def update_connect_button():
     software_version = get_param(42)
+    print('software_version = ' + str(software_version))
     if software_version:
         window.pushButton_2.setText('Обновить')
         font = QtGui.QFont()
@@ -826,12 +830,15 @@ class ExampleApp(QtWidgets.QMainWindow):
 
     def list_of_params_table(self, item):
         item = bookmark_dict[item.text()]
+        self.params_table.itemChanged.disconnect()
         show_empty_params_list(item, 'params_table')
+        self.params_table.itemChanged.connect(self.save_item)
+
         show_value(self.value_col, item, 'params_table')
+
 
     def save_item(self, item):
         table_param = QApplication.instance().sender()
-        table_param.itemChanged.disconnect()
         new_value = item.text()
         if new_value:
             name_param = table_param.item(item.row(), self.name_col).text()
@@ -842,13 +849,16 @@ class ExampleApp(QtWidgets.QMainWindow):
                     value = check_param(address_param, new_value)
                     if str(value) != 'nan':  # прошёл проверку
                         table_param.item(item.row(), self.value_col).setSelected(False)
+
                         if set_param(address_param, value):
                             print('Checked changed value - OK')
                             table_param.item(item.row(), self.value_col).setBackground(QColor('green'))
                             return True
                         else:
                             table_param.item(item.row(), self.value_col).setBackground(QColor('red'))
+                            table_param.itemChanged.disconnect()
                             table_param.item(item.row(), self.value_col).setText(str(get_param(address_param)))
+                            table_param.itemChanged.connect(window.save_item)
 
                             return False
                         # # ------------ЗДЕСЬ всё не так просто - надо разбираться как действовать при смене рейки
@@ -878,7 +888,6 @@ class ExampleApp(QtWidgets.QMainWindow):
         QMessageBox.critical(window, "Ошибка ", err, QMessageBox.Ok)
         table_param.item(item.row(), item.column()).setSelected(False)
         table_param.item(item.row(),  item.column()).setBackground(QColor('red'))
-        table_param.itemChanged.connect(window.save_item)
 
         return False
 
@@ -925,9 +934,6 @@ window.radioButton.toggled.connect(rb_clicked)
 window.radioButton_2.toggled.connect(rb_clicked)
 # сохранение всех параметров из текущей рейки в файл
 window.pushButton.clicked.connect(save_all_params)
-# изменение параметра рейки ведёт к сохранению
-window.params_table.itemChanged.connect(window.save_item)
-window.params_table_2.itemChanged.connect(window.save_item)
 
 window.list_bookmark.setCurrentRow(0)
 #  заполняю все таблицы пустыми параметрами
@@ -936,8 +942,12 @@ window.vmu_param_table.itemChanged.connect(check_connection)
 show_empty_params_list(bookmark_dict[window.list_bookmark.currentItem().text()], 'params_table')
 show_empty_params_list(editable_params_list, 'params_table_2')
 show_empty_params_list(vmu_params_list, 'vmu_param_table')
+# изменение параметра рейки ведёт к сохранению
+window.params_table.itemChanged.connect(window.save_item)
+window.params_table_2.itemChanged.connect(window.save_item)
+
 # параметры КВУ только для просмотра, поэтому отключаю их изменение - оно для всех подключается в функции заполнения
-window.vmu_param_table.itemChanged.disconnect()
+# window.vmu_param_table.itemChanged.disconnect()
 #  щелчок на списке групп параметров ведёт к выводу этих параметров
 window.list_bookmark.itemClicked.connect(window.list_of_params_table)
 window.params_table.resizeColumnsToContents()
