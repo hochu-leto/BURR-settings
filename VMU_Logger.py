@@ -66,6 +66,9 @@ from PyQt5.QtWidgets import QTableWidgetItem, QApplication, QMessageBox, QFileDi
 import CANAnalyzer_ui
 import pandas as pandas
 
+
+
+
 Front_Wheel = 0x4F5
 Rear_Wheel = 0x4F6
 current_wheel = Front_Wheel
@@ -665,6 +668,16 @@ def save_all_params():
     return False
 
 
+def has_wheel(wheel):
+    # запрашиваю тип оси
+    err = marathon.can_request(wheel, wheel + 2 [0, 0, 0, 0, 0x23, 0, 0x2B, 0x03])
+    print(err)
+    if not isinstance(err, str):
+        return err[0]
+    else:
+        return False
+
+
 #  поток для опроса и записи в файл параметров кву
 class VMUSaveToFileThread(QObject):
     running = False
@@ -758,27 +771,28 @@ class ExampleApp(QtWidgets.QMainWindow):
 
     def setting_current_wheel(self, item):
         global current_wheel
-        if current_wheel == Front_Wheel:
-            current_wheel = Rear_Wheel
-            if str(get_param(42)) == 'nan':  # запрашиваю версию ПО у задней оси,
-                current_wheel = Front_Wheel
-                set_param(35, 3)  # если ответа нет, то можно переименовывать в заднюю
-                current_wheel = Rear_Wheel
-                self.radioButton_2.setChecked(True)
+        rb_toggled = QApplication.instance().sender()
+        if rb_toggled == window.set_front_wheel_rb:
+            print('попытка установки передней оси')
+            # если  текущая ось - передняя, то без проблем меняю её на переднюю с цифрой 2 в адресе 0х23
+            if current_wheel == Front_Wheel or \
+                    not has_wheel(Front_Wheel):  # или у нас вообще нет передней оси
+                change_current_wheel(2)
+                self.factory_settings_rb.setCheckable(False)
+                return True
             else:
-                current_wheel = Front_Wheel
-                QMessageBox.critical(window, "Ошибка ", "Уже есть один задний блок", QMessageBox.Ok)
-                return False
-        elif current_wheel == Rear_Wheel:
-            current_wheel = Front_Wheel
-            if str(get_param(42)) == 'nan':  # запрашиваю версию ПО у передней оси,
-                current_wheel = Rear_Wheel
-                set_param(35, 2)  # если ответа нет, то можно переименовывать в переднюю
-                current_wheel = Front_Wheel
-                self.radioButton_2.setChecked(True)
-            else:
-                current_wheel = Rear_Wheel
                 QMessageBox.critical(window, "Ошибка ", "Уже есть один передний блок", QMessageBox.Ok)
+                return False
+
+        elif rb_toggled == window.set_rear_wheel_rb:
+            print('попытка установки задней оси')
+            if current_wheel == Rear_Wheel or \
+                    not has_wheel(Rear_Wheel):  # или у нас вообще нет задней оси
+                change_current_wheel(3)
+                self.factory_settings_rb.setCheckable(False)
+                return True
+            else:
+                QMessageBox.critical(window, "Ошибка ", "Уже есть один задний блок", QMessageBox.Ok)
                 return False
 
     def set_byte_order(self, item):
@@ -827,6 +841,7 @@ class ExampleApp(QtWidgets.QMainWindow):
         errors = get_param(0)
         errors_str = ''
         if str(errors) != 'nan':
+            print(errors)
             for err_nom, err_str in errors_list.items():
                 if errors & err_nom:
                     errors_str += err_str + '\n'
@@ -836,10 +851,17 @@ class ExampleApp(QtWidgets.QMainWindow):
 
         self.set_front_wheel_rb.toggled.disconnect()
         self.set_rear_wheel_rb.toggled.disconnect()
-        if current_wheel == Front_Wheel:
-            self.set_front_wheel_rb.setChecked(True)
-        elif current_wheel == Rear_Wheel:
-            self.set_rear_wheel_rb.setChecked(True)
+        c_wheel = get_param(0x23)
+        print(c_wheel)
+        if c_wheel > 1:
+            self.factory_settings_rb.setCheckable(False)
+            if c_wheel == 2:
+                self.set_front_wheel_rb.setChecked(True)
+            elif c_wheel == 3:
+                self.set_rear_wheel_rb.setChecked(True)
+        else:
+            self.factory_settings_rb.setChecked(True)
+
         self.set_front_wheel_rb.toggled.connect(self.setting_current_wheel)
         self.set_rear_wheel_rb.toggled.connect(self.setting_current_wheel)
 
@@ -1029,5 +1051,6 @@ window.select_file_vmu_params.clicked.connect(make_vmu_params_list)
 
 # убираю вкладку с ожиданием
 window.CAN.removeTab(2)
+window.load_to_device_button.hide()
 window.show()  # Показываем окно
 app.exec_()  # и запускаем приложение

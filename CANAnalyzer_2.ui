@@ -241,7 +241,7 @@
            </sizepolicy>
           </property>
           <property name="currentIndex">
-           <number>0</number>
+           <number>2</number>
           </property>
           <widget class="QWidget" name="all_params">
            <property name="sizePolicy">
@@ -525,7 +525,8 @@
                <item>
                 <widget class="QRadioButton" name="rb_big_endian">
                  <property name="text">
-                  <string>big-endian</string>
+                  <string>big-endian 
+ прямой</string>
                  </property>
                  <property name="checked">
                   <bool>true</bool>
@@ -535,7 +536,8 @@
                <item>
                 <widget class="QRadioButton" name="rb_little_endian">
                  <property name="text">
-                  <string>little-endian</string>
+                  <string>little-endian
+обратный</string>
                  </property>
                 </widget>
                </item>
@@ -547,17 +549,40 @@
               <property name="enabled">
                <bool>false</bool>
               </property>
+              <property name="font">
+               <font>
+                <weight>50</weight>
+                <bold>false</bold>
+               </font>
+              </property>
               <property name="title">
-               <string>Ось</string>
+               <string>Установить ось</string>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_5">
+               <item>
+                <widget class="QRadioButton" name="factory_settings_rb">
+                 <property name="text">
+                  <string>Заводская
+настройка</string>
+                 </property>
+                 <property name="checkable">
+                  <bool>true</bool>
+                 </property>
+                 <property name="checked">
+                  <bool>true</bool>
+                 </property>
+                 <property name="autoExclusive">
+                  <bool>false</bool>
+                 </property>
+                </widget>
+               </item>
                <item>
                 <widget class="QRadioButton" name="set_front_wheel_rb">
                  <property name="text">
                   <string>Передняя</string>
                  </property>
                  <property name="checked">
-                  <bool>true</bool>
+                  <bool>false</bool>
                  </property>
                 </widget>
                </item>
@@ -589,8 +614,18 @@
             </item>
             <item row="0" column="0">
              <widget class="QLabel" name="lb_soft_version">
+              <property name="font">
+               <font>
+                <pointsize>10</pointsize>
+                <weight>75</weight>
+                <bold>true</bold>
+               </font>
+              </property>
               <property name="text">
                <string>Версия ПО БУРР</string>
+              </property>
+              <property name="textFormat">
+               <enum>Qt::RichText</enum>
               </property>
              </widget>
             </item>
@@ -774,15 +809,35 @@
               </layout>
              </widget>
             </item>
-            <item row="1" column="2" rowspan="6">
-             <widget class="QTextBrowser" name="tb_errors"/>
-            </item>
             <item row="0" column="2">
              <widget class="QLabel" name="lb_errors">
+              <property name="font">
+               <font>
+                <pointsize>10</pointsize>
+                <weight>75</weight>
+                <bold>true</bold>
+               </font>
+              </property>
               <property name="text">
                <string>Ошибки</string>
               </property>
              </widget>
+            </item>
+            <item row="5" column="2" rowspan="2">
+             <spacer name="verticalSpacer_4">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>40</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item row="1" column="2" rowspan="3">
+             <widget class="QTextBrowser" name="tb_errors"/>
             </item>
            </layout>
           </widget>

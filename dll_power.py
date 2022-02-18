@@ -227,6 +227,7 @@ class CANMarathon:
                 return str(err)
         return ''
 
+    # возвращает массив int если удалось считать и str если ошибка
     def can_request(self, can_id_req: int, can_id_ans: int, message: list):
         # если канал закрыт, его нда открыть
         err = ''
@@ -341,12 +342,8 @@ class CANMarathon:
             #  значит , нас отключили, уходим
             elif result == 0:
                 err = 'Нет CAN шины больше секунды '
-                self.close_marathon_canal()
-                return err
             else:
                 err = 'Нет подключения к CAN шине '
-                self.close_marathon_canal()
-                return err
         #  выход из цикла попыток
         self.close_marathon_canal()
         return err
