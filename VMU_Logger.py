@@ -1,13 +1,14 @@
 """
 --------------------------------------------критично------------------------------
-- не обновляет параметры визуально
-- не закрывает канал после записи параметра
 - блокировать любые нажатия, пока опрашиваются параметры(- нет индикации работы когда считывает параметры)
     не получается это сделать, потому что пока опрашиваются параметры внутри функции изображение формы изменить
     невозможно. Что-то делается с формой только после выхода из функции - один выход -переходить на параллельные потоки
+
 - если изменилось дескрипшн - сохранять описание параметра в файл с дескрипшн
+
 - выбрасывает ошибку при установке задней или передней оси(- НЕ МОЖЕТ ПЕРЕКЛЮЧИТЬ РЕЙКУ С ЗАДНЕЙ НА ПЕРЕДНЮЮ)
-- в списке осей нет индикации заводской настройки
+(- в списке осей нет индикации заводской настройки)
+
 - не записывает значения параметров из файла настроек в устройство
 - после сохранения параметров БУРР их нет в листе param_list
 - автоматическое добавление слайдеров из списка
@@ -18,6 +19,7 @@
 - сохраняет файл с настройками рейки даже если величин нет
 - сделать нормальную проверку записываемого параметра
 --------------------------------------------хотелки-------------------------
+- сделать поиск параметра по описанию и названию
 - вместо блокировки любых нажатий использовать другой поток для опроса параметров
 - задел под парсинг файла с настройками от рткона
 -- индекс и саб_индекс вместо адресов кву
@@ -35,6 +37,8 @@
 какая-то непонятная фигня, есть подозрения, что это особенность работы марафона - без перезагрузки он периодически
 отваливается . Выход - переход на квайзер и кан-хакер
 --------------------------------------------исправил--------------------------------
+- не обновляет параметры визуально
+- не закрывает канал после записи параметра
 - (когда нет подключения при переключении на другую вкладку в основных параметрах пока
 опрашивает каждый параметр, выбрасывает ошибку на каждый ) -  исправил
 - (глобальных путей файлов *.xlsx) - исправил
@@ -127,6 +131,45 @@ rb_param_list = {
 compare_param_dict = {}
 rtcon_vmu = 0x1850460E
 vmu_rtcon = 0x594
+
+
+def change_current_wheel(target_wheel: int):
+    global current_wheel
+
+    data = marathon.can_request(current_wheel, current_wheel + 2, [0, 0, 0, 0, 0x23, 0, 0x2B, 0x03])
+    if target_wheel == data[0]:
+        return True
+
+    if 1 < target_wheel < 4:
+
+        err = marathon.can_write(current_wheel, [target_wheel, 0, 0, 0, 0x23, 0, 0x2B, 0x10])
+        if not err:
+            window.radioButton.toggled.disconnect()
+            window.radioButton_2.toggled.disconnect()
+            if current_wheel == Front_Wheel:
+                current_wheel = Rear_Wheel
+                window.radioButton_2.setChecked(True)
+            else:
+                current_wheel = Front_Wheel
+                window.radioButton.setChecked(True)
+            window.radioButton.toggled.connect(rb_clicked)
+            window.radioButton_2.toggled.connect(rb_clicked)
+            data = marathon.can_request(current_wheel, current_wheel + 2, [0, 0, 0, 0, 0x23, 0, 0x2B, 0x03])
+            if not isinstance(data, str):
+                if target_wheel == data[0]:
+                    for param in params_list:
+                        if param['address'] == 35:
+                            param['value'] = target_wheel
+                            return True
+                    err = 'Не найден параметр в списке - ерунда'
+                else:
+                    err = f'Текущий параметр из устройства отличается от желаемого {target_wheel} <> {data[0]}'
+            else:
+                err = data
+    else:
+        err = 'Рейка должна быть или передней = 2, или задней = 3'
+    QMessageBox.critical(window, "Ошибка ", err, QMessageBox.Ok)
+    return False
 
 
 def show_waiting_tab():
@@ -454,7 +497,6 @@ def show_empty_params_list(list_of_params: list, table: str):
 
         row += 1
     show_table.resizeColumnsToContents()
-    # show_table.itemChanged.connect(window.save_item)
 
 
 def update_param():
@@ -462,15 +504,12 @@ def update_param():
         if window.tab_burr.currentWidget() == window.often_used_params:
             window.best_params()
         elif window.tab_burr.currentWidget() == window.editable_params:
-            # я зачем-то раньше обновлял пустой список, сейчас это не нужно
             param_list_clear()
-            # show_empty_params_list(editable_params_list, 'params_table_2')
             show_value(window.value_col, editable_params_list, 'params_table_2')
             if compare_param_dict:
                 show_compare_list(compare_param_dict)
         elif window.tab_burr.currentWidget() == window.all_params:
             param_list_clear()
-            # show_empty_params_list(bookmark_dict[window.list_bookmark.currentItem().text()], 'params_table')
             show_value(window.value_col, bookmark_dict[window.list_bookmark.currentItem().text()], 'params_table')
 
 
@@ -552,6 +591,9 @@ def set_param(address: int, value: int):
     # Здесь всё нахрен надо исправить
     address = int(address)
     value = int(value)
+    if address == 0x23:
+        change_current_wheel(value)
+        return True
     LSB = address & 0xFF
     MSB = ((address & 0xFF00) >> 8)
     data = [value & 0xFF,
@@ -835,7 +877,6 @@ class ExampleApp(QtWidgets.QMainWindow):
         self.params_table.itemChanged.connect(self.save_item)
 
         show_value(self.value_col, item, 'params_table')
-
 
     def save_item(self, item):
         table_param = QApplication.instance().sender()

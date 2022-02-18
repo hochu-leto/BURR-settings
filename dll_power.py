@@ -230,7 +230,6 @@ class CANMarathon:
     def can_request(self, can_id_req: int, can_id_ans: int, message: list):
         # если канал закрыт, его нда открыть
         err = ''
-        print(self.is_canal_open)
         if not self.is_canal_open:
             err = self.canal_open()
             if err:
