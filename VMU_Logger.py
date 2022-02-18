@@ -16,6 +16,7 @@
 - расширить диапазон токовый до 110А
 - сделать токовые слайдеры одинаковыми по максимуму и минимуму
 - сохраняет файл с настройками рейки даже если величин нет
+- сделать нормальную проверку записываемого параметра
 --------------------------------------------хотелки-------------------------
 - вместо блокировки любых нажатий использовать другой поток для опроса параметров
 - задел под парсинг файла с настройками от рткона
@@ -512,33 +513,35 @@ def get_address(name: str):
     return 'nan'
 
 
-def check_param(address: int, value):  # если новое значение - часть списка, то
-    int_type_list = ['UINT32', 'UINT16', 'INT32', 'INT16', 'DATE']
-    for param in params_list:
-        if str(param['address']) != 'nan':
-            if param['address'] == address:  # нахожу нужный параметр
-                if str(param['editable']) != 'nan':  # он должен быть изменяемым
-                    # здесь должна быть куча проверок, но сейчас костыль
-                    value = int(value)
-
-                    if isinstance(value, int):  # и переменная - число
-                        # if int(param['max']) >= value >= int(param['min']):  # причём это число в зоне допустимого
-                        return value  # ну тогда так у ж и быть - отдаём это число
-                        # else:
-                        #     print(f"param {value} is not in range from {param['min']} to {param['max']}")
-                    else:
-                        # отработка попадания значения из списка STR и UNION
-                        print(f"value is not numeric {param['type']}")
-                        # string_dict = {}
-                        # for item in param['strings'].strip().split(';'):
-                        #     if item:
-                        #         it = item.split('-')
-                        #         string_dict[it[1].strip()] = int(it[0].strip())
-                        # return string_dict[value.strip()]
-                        return 'nan'
-                else:
-                    print(f"can't change param {param['name']}")
-    return 'nan'
+# какая-то хрень а не проверка
+def check_param(address: int, value):
+    return int(value)
+    # здесь должна быть нормальная проверка параметра - на допустимые пределы, что он не строка, что он целое число и
+    # не отрицательное, ноя хрен его знаю как это сделать правильно
+    #
+    # int_type_list = ['UINT32', 'UINT16', 'INT32',
+    # 'INT16', 'DATE'] for param in params_list: if str(param['address']) != 'nan': if param['address'] == address:
+    # нахожу нужный параметр if str(param['editable']) != 'nan':  # он должен быть изменяемым # здесь должна быть
+    # куча проверок, но сейчас костыль value = int(value)
+    #
+    #                 if isinstance(value, int):  # и переменная - число
+    #                     # if int(param['max']) >= value >= int(param['min']):  # причём это число в зоне допустимого
+    #                     return value  # ну тогда так у ж и быть - отдаём это число
+    #                     # else:
+    #                     #     print(f"param {value} is not in range from {param['min']} to {param['max']}")
+    #                 else:
+    #                     # отработка попадания значения из списка STR и UNION
+    #                     print(f"value is not numeric {param['type']}")
+    #                     # string_dict = {}
+    #                     # for item in param['strings'].strip().split(';'):
+    #                     #     if item:
+    #                     #         it = item.split('-')
+    #                     #         string_dict[it[1].strip()] = int(it[0].strip())
+    #                     # return string_dict[value.strip()]
+    #                     return 'nan'
+    #             else:
+    #                 print(f"can't change param {param['name']}")
+    # return 'nan'
 
 
 def set_param(address: int, value: int):
