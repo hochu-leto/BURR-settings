@@ -192,7 +192,26 @@ vmu_rtcon = 0x594
 def erase_burr_errors():
     # сброс аварии необходимо в параметре по адресу 500 DEC записать значение «5» ;
     # и опросить ошибки снова и обновить окно с ошибками
-    pass
+    global current_wheel
+
+    err = marathon.can_write(current_wheel, [5, 0, 0, 0, 500, 0, 0x2B, 0x10])
+    if not err:
+        errors = get_param(0)
+        print(errors)
+        if errors:
+            errors_str = ''
+            # надо как-то проверить когда нет ошибок и когда нет ответа
+            if errors != 0:
+                for err_nom, err_str in errors_list.items():
+                    if errors & err_nom:
+                        errors_str += err_str + '\n'
+                QMessageBox.critical(window, "Ошибка ", "Похоже, удалить все ошибки не удалось", QMessageBox.Ok)
+            else:
+                errors_str = 'Нет ошибок'
+                QMessageBox.information(window, "Успех", "Ошибок больше нет", QMessageBox.Ok)
+            window.tb_errors.setText(errors_str)
+            return
+    QMessageBox.critical(window, "Ошибка ", "Попытка удаления ошибок не удалась", QMessageBox.Ok)
 
 
 def change_current_wheel(target_wheel: int):
@@ -871,7 +890,7 @@ class ExampleApp(QtWidgets.QMainWindow):
 
         errors = get_param(0)
         errors_str = ''
-        print(errors)
+        # print(errors)
         for err_nom, err_str in errors_list.items():
             if errors & err_nom:
                 errors_str += err_str + '\n'
