@@ -67,6 +67,9 @@ import CANAnalyzer_ui
 import pandas as pandas
 
 
+class Wheel():
+    req_id = 0
+    ans_id = 0
 
 
 Front_Wheel = 0x4F5
@@ -77,7 +80,7 @@ often_used_params = {
     'zone_of_insensitivity': {'scale': 100,
                               'value': 0,
                               'address': 103,
-                              'min': 1,
+                              'min': 0,
                               'max': 5,
                               'unit': '%'},
     'warning_temperature': {'scale': 1,
@@ -89,48 +92,67 @@ often_used_params = {
     'warning_current': {'scale': 100,
                         'value': 0,
                         'address': 105,
-                        'min': 10,
-                        'max': 60,
+                        'min': 20,
+                        'max': 100,
                         'unit': 'A'},
     'cut_off_current': {'scale': 100,
                         'value': 0,
                         'address': 403,
                         'min': 20,
-                        'max': 80,
+                        'max': 100,
                         'unit': 'A'}
 }
 '''
     Вот список байта аварий, побитно начиная от самого младшего:
     Битовое поле формируется от самого младшего к старшему биту справа на лево.
     Например 
-    Бит 0 соответствует значению 0000 0001 или 0х01  ModFlt:1;  // 0  авария модуля 
-    Бит 1 это 0000 0010 или 0x02         SCFlt:1;  // 1  кз на выходе
-    Бит 2 это 0000 0100 или 0х04        HellaFlt:1;  // 2  авария датчика положение/калибровки
-    Бит 3 это 0000 1000 или 0х08        TempFlt:1;  // 3  перегрев силового радиатора
-    Бит 4 это 0001 0000 или 0x10        OvVoltFlt:1;  // 4  перенапряжение Udc
-    Бит 5 это 0010 0000 или 0х20        UnVoltFlt:1;   // 5  понижение напряжения Udc
-    Бит 6 это 0100 0000 или 0х40        OverCurrFlt:1;// 6  длительная токовая перегрузка
-    Бит 7 это 1000 0000 или 0х80        RevErrFlt:1;   // 7  неправильная полярность DC-мотора
+    Бит 0 это 0000 0001 или 0х01        ModFlt:1;       // 0  авария модуля 
+    Бит 1 это 0000 0010 или 0x02        SCFlt:1;        // 1  кз на выходе
+    Бит 2 это 0000 0100 или 0х04        HellaFlt:1;     // 2  авария датчика положение/калибровки
+    Бит 3 это 0000 1000 или 0х08        TempFlt:1;      // 3  перегрев силового радиатора
+    Бит 4 это 0001 0000 или 0x10        OvVoltFlt:1;    // 4  перенапряжение Udc
+    Бит 5 это 0010 0000 или 0х20        UnVoltFlt:1;    // 5  понижение напряжения Udc
+    Бит 6 это 0100 0000 или 0х40        OverCurrFlt:1;  // 6  длительная токовая перегрузка
+    Бит 7 это 1000 0000 или 0х80        RevErrFlt:1;    // 7  неправильная полярность DC-мотора
+небольшое дополнение - список ошибок был неполон. Вот полный
+0- ModFlt ;             // 0  авария модуля
+1- SC1Flt ;             // 1  кз на выходе
+2- HellaFlt ;           // 2  авария датчика положение/калибровки
+3- DINstopFlt ;         // 3  DINstopFlt 
+4- REZERV 2 ;           // 4  REZERV 2
+5- NoMoveFlt ;          // 5  NoMoveFlt   
+6- I2tFlt ;             // 6  I2tFlt
+7- TempFlt ;            // 7  перегрев силового радиатора
+8- OpenMotor ;          // 8  OpenMotor
+9- OvVoltFlt ;          // 9  перенапряжение Udc
+10- UnVoltFlt ;         // 10 понижение напряжения Udc
+11- NoCAN ;             // 11 Нет CANa
+12- NoMB ;              // 12 Нет МодБаса
+13- OverCurrFlt ;       // 13 длительная токовая перегрузка
+14- RevErrFlt ;         // 14 неправильная полярность DC-мотора
+15- REZERV_15 ;         // 15 REZERV_15 
+
 '''
 
 errors_list = {0x1: 'авария модуля',
                0x2: 'кз на выходе',
-               0x4: 'авария датчика положение/калибровки',
-               0x8: 'перегрев силового радиатора',
-               0x10: 'перенапряжение Udc',
-               0x20: 'понижение напряжения Udc',
-               0x40: 'длительная токовая перегрузка',
-               0x80: 'неправильная полярность DC-мотора',
+               0x4: 'авария датчика положени/калибровки',
+               0x8: 'DIN stop Fault',
+               0x10: 'REZERV',
+               0x20: 'No Move Fault',
+               0x40: 'I2t Fault',
+               0x80: 'перегрев силового радиатора',
+               0x100: 'Open Motor Fault',
+               0x200: 'перенапряжение Udc',
+               0x400: 'понижение напряжения Udc',
+               0x800: 'нет CANa',
+               0x1000: 'нет МодБаса',
+               0x2000: 'длительная токовая перегрузка',
+               0x4000: 'неправильная полярность DC-мотора',
+               0x8000: 'REZERV 15',
+
                }
 
-rb_param_list = {
-    'current_wheel': {'scale': 'nan',
-                      'value': 0,
-                      'address': 35},
-    'byte_order': {'scale': 'nan',
-                   'value': 0,
-                   'address': 109},
-}
 compare_param_dict = {}
 rtcon_vmu = 0x1850460E
 vmu_rtcon = 0x594
@@ -138,39 +160,45 @@ vmu_rtcon = 0x594
 
 def change_current_wheel(target_wheel: int):
     global current_wheel
-
-    data = marathon.can_request(current_wheel, current_wheel + 2, [0, 0, 0, 0, 0x23, 0, 0x2B, 0x03])
-    if target_wheel == data[0]:
+    # защита от повторного входа в функцию
+    if target_wheel == has_wheel(current_wheel):
         return True
-
-    if 1 < target_wheel < 4:
-
-        err = marathon.can_write(current_wheel, [target_wheel, 0, 0, 0, 0x23, 0, 0x2B, 0x10])
-        if not err:
-            window.radioButton.toggled.disconnect()
-            window.radioButton_2.toggled.disconnect()
-            if current_wheel == Front_Wheel:
-                current_wheel = Rear_Wheel
-                window.radioButton_2.setChecked(True)
-            else:
-                current_wheel = Front_Wheel
-                window.radioButton.setChecked(True)
-            window.radioButton.toggled.connect(rb_clicked)
-            window.radioButton_2.toggled.connect(rb_clicked)
-            data = marathon.can_request(current_wheel, current_wheel + 2, [0, 0, 0, 0, 0x23, 0, 0x2B, 0x03])
-            if not isinstance(data, str):
-                if target_wheel == data[0]:
-                    for param in params_list:
-                        if param['address'] == 35:
-                            param['value'] = target_wheel
-                            return True
-                    err = 'Не найден параметр в списке - ерунда'
-                else:
-                    err = f'Текущий параметр из устройства отличается от желаемого {target_wheel} <> {data[0]}'
-            else:
-                err = data
+    # надо проверить на всех рейках может быть любое значение 0,1,2,3,4 , апрол
+    err = ''
+    if target_wheel == 2:
+        if has_wheel(Front_Wheel):
+            err = "Уже есть один передний блок"
+    elif target_wheel == 3:
+        if has_wheel(Rear_Wheel):
+            err = "Уже есть один задний блок"
     else:
         err = 'Рейка должна быть или передней = 2, или задней = 3'
+
+    if err:
+        QMessageBox.critical(window, "Ошибка ", err, QMessageBox.Ok)
+        return False
+
+    err = marathon.can_write(current_wheel, [target_wheel, 0, 0, 0, 0x23, 0, 0x2B, 0x10])
+    if not err:
+        window.radioButton.toggled.disconnect()
+        window.radioButton_2.toggled.disconnect()
+        if current_wheel == Front_Wheel:
+            current_wheel = Rear_Wheel
+            window.radioButton_2.setChecked(True)
+        else:
+            current_wheel = Front_Wheel
+            window.radioButton.setChecked(True)
+        window.radioButton.toggled.connect(rb_clicked)
+        window.radioButton_2.toggled.connect(rb_clicked)
+
+        if target_wheel == has_wheel(current_wheel):
+            for param in params_list:
+                if param['address'] == 35:
+                    param['value'] = target_wheel
+                    return True
+            err = 'Не найден параметр в списке - ерунда'
+        else:
+            err = f'Текущий параметр из устройства отличается от желаемого {target_wheel}'
     QMessageBox.critical(window, "Ошибка ", err, QMessageBox.Ok)
     return False
 
@@ -427,7 +455,6 @@ def check_connection():
 
 
 def show_value(col_value: int, list_of_params: list, table: str):
-
     if update_connect_button():  # проверка что есть связь с блоком
         show_table = getattr(window, table)
 
@@ -561,33 +588,9 @@ def get_address(name: str):
 
 # какая-то хрень а не проверка
 def check_param(address: int, value):
-    return int(value)
-    # здесь должна быть нормальная проверка параметра - на допустимые пределы, что он не строка, что он целое число и
-    # не отрицательное, ноя хрен его знаю как это сделать правильно
-    #
-    # int_type_list = ['UINT32', 'UINT16', 'INT32',
-    # 'INT16', 'DATE'] for param in params_list: if str(param['address']) != 'nan': if param['address'] == address:
-    # нахожу нужный параметр if str(param['editable']) != 'nan':  # он должен быть изменяемым # здесь должна быть
-    # куча проверок, но сейчас костыль value = int(value)
-    #
-    #                 if isinstance(value, int):  # и переменная - число
-    #                     # if int(param['max']) >= value >= int(param['min']):  # причём это число в зоне допустимого
-    #                     return value  # ну тогда так у ж и быть - отдаём это число
-    #                     # else:
-    #                     #     print(f"param {value} is not in range from {param['min']} to {param['max']}")
-    #                 else:
-    #                     # отработка попадания значения из списка STR и UNION
-    #                     print(f"value is not numeric {param['type']}")
-    #                     # string_dict = {}
-    #                     # for item in param['strings'].strip().split(';'):
-    #                     #     if item:
-    #                     #         it = item.split('-')
-    #                     #         string_dict[it[1].strip()] = int(it[0].strip())
-    #                     # return string_dict[value.strip()]
-    #                     return 'nan'
-    #             else:
-    #                 print(f"can't change param {param['name']}")
-    # return 'nan'
+    if isinstance(value, int):
+        return int(value)
+    return 'nan'
 
 
 def set_param(address: int, value: int):
@@ -670,8 +673,7 @@ def save_all_params():
 
 def has_wheel(wheel):
     # запрашиваю тип оси
-    err = marathon.can_request(wheel, wheel + 2 [0, 0, 0, 0, 0x23, 0, 0x2B, 0x03])
-    print(err)
+    err = marathon.can_request(wheel, wheel + 2, [0, 0, 0, 0, 0x23, 0, 0x2B, 0x03])
     if not isinstance(err, str):
         return err[0]
     else:
@@ -770,30 +772,22 @@ class ExampleApp(QtWidgets.QMainWindow):
             row += 1
 
     def setting_current_wheel(self, item):
-        global current_wheel
         rb_toggled = QApplication.instance().sender()
-        if rb_toggled == window.set_front_wheel_rb:
-            print('попытка установки передней оси')
-            # если  текущая ось - передняя, то без проблем меняю её на переднюю с цифрой 2 в адресе 0х23
-            if current_wheel == Front_Wheel or \
-                    not has_wheel(Front_Wheel):  # или у нас вообще нет передней оси
-                change_current_wheel(2)
-                self.factory_settings_rb.setCheckable(False)
-                return True
-            else:
-                QMessageBox.critical(window, "Ошибка ", "Уже есть один передний блок", QMessageBox.Ok)
-                return False
 
-        elif rb_toggled == window.set_rear_wheel_rb:
+        if rb_toggled != self.set_front_wheel_rb:
+            print('попытка установки передней оси')
+            change_current_wheel(2)
+            self.set_front_wheel_rb.setChecked(True)
+            self.factory_settings_rb.setCheckable(False)
+            return True
+
+        elif rb_toggled != self.set_rear_wheel_rb:
             print('попытка установки задней оси')
-            if current_wheel == Rear_Wheel or \
-                    not has_wheel(Rear_Wheel):  # или у нас вообще нет задней оси
-                change_current_wheel(3)
-                self.factory_settings_rb.setCheckable(False)
-                return True
-            else:
-                QMessageBox.critical(window, "Ошибка ", "Уже есть один задний блок", QMessageBox.Ok)
-                return False
+            change_current_wheel(3)
+            self.set_rear_wheel_rb.setChecked(True)
+            self.factory_settings_rb.setCheckable(False)
+            return True
+        return False
 
     def set_byte_order(self, item):
         if item:
@@ -840,12 +834,11 @@ class ExampleApp(QtWidgets.QMainWindow):
 
         errors = get_param(0)
         errors_str = ''
-        if str(errors) != 'nan':
-            print(errors)
-            for err_nom, err_str in errors_list.items():
-                if errors & err_nom:
-                    errors_str += err_str + '\n'
-        else:
+        print(errors)
+        for err_nom, err_str in errors_list.items():
+            if errors & err_nom:
+                errors_str += err_str + '\n'
+        if errors_str == '':
             errors_str = 'Нет ошибок '
         self.tb_errors.setText(errors_str)
 
@@ -950,7 +943,7 @@ class ExampleApp(QtWidgets.QMainWindow):
             err = 'Value is empty'
         QMessageBox.critical(window, "Ошибка ", err, QMessageBox.Ok)
         table_param.item(item.row(), item.column()).setSelected(False)
-        table_param.item(item.row(),  item.column()).setBackground(QColor('red'))
+        table_param.item(item.row(), item.column()).setBackground(QColor('red'))
 
         return False
 
