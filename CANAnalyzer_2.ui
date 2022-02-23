@@ -839,6 +839,19 @@
             <item row="1" column="2" rowspan="3">
              <widget class="QTextBrowser" name="tb_errors"/>
             </item>
+            <item row="4" column="2">
+             <widget class="QPushButton" name="erase_err_btn">
+              <property name="font">
+               <font>
+                <weight>75</weight>
+                <bold>true</bold>
+               </font>
+              </property>
+              <property name="text">
+               <string>Сбросить ошибки</string>
+              </property>
+             </widget>
+            </item>
            </layout>
           </widget>
          </widget>
