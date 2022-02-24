@@ -588,7 +588,7 @@ def get_address(name: str):
 
 # какая-то хрень а не проверка
 def check_param(address: int, value):
-    if isinstance(value, int):
+    if value.isdigit():
         return int(value)
     return 'nan'
 
@@ -774,18 +774,23 @@ class ExampleApp(QtWidgets.QMainWindow):
     def setting_current_wheel(self, item):
         rb_toggled = QApplication.instance().sender()
 
-        if rb_toggled != self.set_front_wheel_rb:
+        if rb_toggled == self.set_front_wheel_rb:
             print('попытка установки передней оси')
             change_current_wheel(2)
-            self.set_front_wheel_rb.setChecked(True)
-            self.factory_settings_rb.setCheckable(False)
-            return True
 
-        elif rb_toggled != self.set_rear_wheel_rb:
-            print('попытка установки задней оси')
-            change_current_wheel(3)
+            self.set_rear_wheel_rb.toggled.disconnect()
             self.set_rear_wheel_rb.setChecked(True)
             self.factory_settings_rb.setCheckable(False)
+            self.set_rear_wheel_rb.toggled.connect(self.setting_current_wheel)
+            return True
+
+        elif rb_toggled == self.set_rear_wheel_rb:
+            print('попытка установки задней оси')
+            change_current_wheel(3)
+            self.set_front_wheel_rb.toggled.disconnect()
+            self.set_front_wheel_rb.setChecked(True)
+            self.factory_settings_rb.setCheckable(False)
+            self.set_front_wheel_rb.toggled.connect(self.setting_current_wheel)
             return True
         return False
 
