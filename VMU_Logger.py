@@ -162,7 +162,7 @@ def change_current_wheel(target_wheel: int):
     global current_wheel
     # защита от повторного входа в функцию
     if target_wheel == has_wheel(current_wheel):
-        return True
+        return
     # надо проверить на всех рейках может быть любое значение 0,1,2,3,4 , апрол
     err = ''
     if target_wheel == 2:
@@ -176,7 +176,7 @@ def change_current_wheel(target_wheel: int):
 
     if err:
         QMessageBox.critical(window, "Ошибка ", err, QMessageBox.Ok)
-        return False
+        return
 
     err = marathon.can_write(current_wheel, [target_wheel, 0, 0, 0, 0x23, 0, 0x2B, 0x10])
     if not err:
@@ -195,12 +195,12 @@ def change_current_wheel(target_wheel: int):
             for param in params_list:
                 if param['address'] == 35:
                     param['value'] = target_wheel
-                    return True
+                    return
             err = 'Не найден параметр в списке - ерунда'
         else:
             err = f'Текущий параметр из устройства отличается от желаемого {target_wheel}'
     QMessageBox.critical(window, "Ошибка ", err, QMessageBox.Ok)
-    return False
+    return
 
 
 def show_waiting_tab():
@@ -771,28 +771,13 @@ class ExampleApp(QtWidgets.QMainWindow):
             self.vmu_param_table.setItem(row, window.value_col, value_Item)
             row += 1
 
-    def setting_current_wheel(self, item):
-        rb_toggled = QApplication.instance().sender()
-
-        if rb_toggled == self.set_front_wheel_rb:
+    def set_front_wheel(self, item):
             print('попытка установки передней оси')
             change_current_wheel(2)
 
-            self.set_rear_wheel_rb.toggled.disconnect()
-            self.set_rear_wheel_rb.setChecked(True)
-            self.factory_settings_rb.setCheckable(False)
-            self.set_rear_wheel_rb.toggled.connect(self.setting_current_wheel)
-            return True
-
-        elif rb_toggled == self.set_rear_wheel_rb:
-            print('попытка установки задней оси')
-            change_current_wheel(3)
-            self.set_front_wheel_rb.toggled.disconnect()
-            self.set_front_wheel_rb.setChecked(True)
-            self.factory_settings_rb.setCheckable(False)
-            self.set_front_wheel_rb.toggled.connect(self.setting_current_wheel)
-            return True
-        return False
+    def set_rear_wheel(self, item):
+       print('попытка установки задней оси')
+       change_current_wheel(3)
 
     def set_byte_order(self, item):
         if item:
@@ -860,8 +845,8 @@ class ExampleApp(QtWidgets.QMainWindow):
         else:
             self.factory_settings_rb.setChecked(True)
 
-        self.set_front_wheel_rb.toggled.connect(self.setting_current_wheel)
-        self.set_rear_wheel_rb.toggled.connect(self.setting_current_wheel)
+        self.set_front_wheel_rb.toggled.connect(self.set_front_wheel)
+        self.set_rear_wheel_rb.toggled.connect(self.set_rear__wheel)
 
         self.rb_big_endian.toggled.disconnect()
         self.rb_little_endian.toggled.disconnect()
@@ -1030,8 +1015,8 @@ for name, par in often_used_params.items():
     label = getattr(window, 'lab_' + name)
     label.setText(str(par['min']) + par['unit'])
 # изменение текущего блока на противоположный - работает паршиво - нет заводского режима
-window.set_front_wheel_rb.toggled.connect(window.setting_current_wheel)
-window.set_rear_wheel_rb.toggled.connect(window.setting_current_wheel)
+window.set_front_wheel_rb.toggled.connect(window.set_front_wheel)
+window.set_rear_wheel_rb.toggled.connect(window.set_rear_wheel)
 # изменение порядка следования байт - работает тоже паршиво
 window.rb_big_endian.toggled.connect(window.set_byte_order)
 window.rb_little_endian.toggled.connect(window.set_byte_order)
