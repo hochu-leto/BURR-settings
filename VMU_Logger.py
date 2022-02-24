@@ -830,12 +830,12 @@ class ExampleApp(QtWidgets.QMainWindow):
             row += 1
 
     def set_front_wheel(self, item):
-            print('попытка установки передней оси')
-            change_current_wheel(2)
+        print('попытка установки передней оси')
+        change_current_wheel(2)
 
     def set_rear_wheel(self, item):
-       print('попытка установки задней оси')
-       change_current_wheel(3)
+        print('попытка установки задней оси')
+        change_current_wheel(3)
 
     def set_byte_order(self, item):
         if item:
