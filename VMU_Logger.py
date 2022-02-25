@@ -197,6 +197,7 @@ class ExampleDialog(QtWidgets.QDialog, Ui_Dialog):
         super().__init__()
         self.setupUi(self)
 
+
 def erase_burr_errors():
     # сброс аварии необходимо в параметре по адресу 500 DEC записать значение «5» ;
     # и опросить ошибки снова и обновить окно с ошибками
@@ -595,6 +596,7 @@ def show_empty_params_list(list_of_params: list, table: str):
 
 
 def update_param():
+    dialog.show()
     if update_connect_button():  # проверка что есть связь с блоком
         if window.tab_burr.currentWidget() == window.often_used_params:
             window.best_params()
@@ -1005,7 +1007,7 @@ class ExampleApp(QtWidgets.QMainWindow):
 
 app = QApplication([])
 window = ExampleApp()  # Создаём объект класса ExampleApp
-
+dialog = ExampleDialog()
 dir_path = str(pathlib.Path.cwd())
 # vmu_param_file = 'table_for_params.xlsx'
 vmu_param_file = 'table_for_params_forward_wheels.xlsx'
