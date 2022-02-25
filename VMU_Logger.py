@@ -176,7 +176,7 @@ def change_current_wheel(target_wheel: int):
 
     if err:
         QMessageBox.critical(window, "Ошибка ", err, QMessageBox.Ok)
-        return
+        return False
 
     err = marathon.can_write(current_wheel, [target_wheel, 0, 0, 0, 0x23, 0, 0x2B, 0x10])
     if not err:
@@ -195,12 +195,12 @@ def change_current_wheel(target_wheel: int):
             for param in params_list:
                 if param['address'] == 35:
                     param['value'] = target_wheel
-                    return
+                    return True
             err = 'Не найден параметр в списке - ерунда'
         else:
             err = f'Текущий параметр из устройства отличается от желаемого {target_wheel}'
     QMessageBox.critical(window, "Ошибка ", err, QMessageBox.Ok)
-    return
+    return False
 
 
 def show_waiting_tab():
@@ -772,12 +772,15 @@ class ExampleApp(QtWidgets.QMainWindow):
             row += 1
 
     def set_front_wheel(self, item):
-            print('попытка установки передней оси')
-            change_current_wheel(2)
+        print('попытка установки передней оси')
+        change_current_wheel(2)
+        self.best_params()
 
     def set_rear_wheel(self, item):
-       print('попытка установки задней оси')
-       change_current_wheel(3)
+        print('попытка установки задней оси')
+        change_current_wheel(3)
+        self.best_params()
+
 
     def set_byte_order(self, item):
         if item:
@@ -824,7 +827,6 @@ class ExampleApp(QtWidgets.QMainWindow):
 
         errors = get_param(0)
         errors_str = ''
-        print(errors)
         for err_nom, err_str in errors_list.items():
             if errors & err_nom:
                 errors_str += err_str + '\n'
@@ -835,7 +837,6 @@ class ExampleApp(QtWidgets.QMainWindow):
         self.set_front_wheel_rb.toggled.disconnect()
         self.set_rear_wheel_rb.toggled.disconnect()
         c_wheel = get_param(0x23)
-        print(c_wheel)
         if c_wheel > 1:
             self.factory_settings_rb.setCheckable(False)
             if c_wheel == 2:
@@ -846,7 +847,7 @@ class ExampleApp(QtWidgets.QMainWindow):
             self.factory_settings_rb.setChecked(True)
 
         self.set_front_wheel_rb.toggled.connect(self.set_front_wheel)
-        self.set_rear_wheel_rb.toggled.connect(self.set_rear__wheel)
+        self.set_rear_wheel_rb.toggled.connect(self.set_rear_wheel)
 
         self.rb_big_endian.toggled.disconnect()
         self.rb_little_endian.toggled.disconnect()
@@ -1029,7 +1030,6 @@ window.constantly_req_vmu_params.toggled.connect(const_req_vmu_params)
 reg_ex_2 = QRegExp("[0-9]{1,5}")
 window.response_time_edit.setValidator(QRegExpValidator(reg_ex_2))
 window.response_time_edit.setText('1000')
-# window.response_time_edit.textEdited.connect(check_response_time)
 window.select_file_vmu_params.clicked.connect(make_vmu_params_list)
 
 # убираю вкладку с ожиданием и опросом кву
