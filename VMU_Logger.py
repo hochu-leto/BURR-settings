@@ -904,7 +904,7 @@ class ExampleApp(QtWidgets.QMainWindow):
             self.factory_settings_rb.setChecked(True)
 
         self.set_front_wheel_rb.toggled.connect(self.set_front_wheel)
-        self.set_rear_wheel_rb.toggled.connect(self.set_rear__wheel)
+        self.set_rear_wheel_rb.toggled.connect(self.set_rear_wheel)
 
         self.rb_big_endian.toggled.disconnect()
         self.rb_little_endian.toggled.disconnect()
