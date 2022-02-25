@@ -1032,8 +1032,9 @@ window.response_time_edit.setText('1000')
 # window.response_time_edit.textEdited.connect(check_response_time)
 window.select_file_vmu_params.clicked.connect(make_vmu_params_list)
 
-# убираю вкладку с ожиданием
+# убираю вкладку с ожиданием и опросом кву
 window.CAN.removeTab(2)
+window.CAN.removeTab(0)
 window.load_to_device_button.hide()
 window.show()  # Показываем окно
 app.exec_()  # и запускаем приложение
