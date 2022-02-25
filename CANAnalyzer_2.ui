@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>Диагностика и настройка EVO1 </string>
+   <string>Настройка БУРР-30</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="enabled">
