@@ -52,6 +52,7 @@
   Данный сектор находится в диапазоне адресов с 300 по 349 DEC.
  - СДЕЛАЛ
 """
+from Dialog import Ui_Dialog
 
 '''
 Небольшая инструкция по работе с БУРР-30 в тестовом режиме Для работы блока БУРР-30 в режиме тестового управления 
@@ -191,29 +192,35 @@ rtcon_vmu = 0x1850460E
 vmu_rtcon = 0x594
 
 
+class ExampleDialog(QtWidgets.QDialog, Ui_Dialog):
+    def __init__(self):
+        super().__init__()
+        self.setupUi(self)
+
 def erase_burr_errors():
     # сброс аварии необходимо в параметре по адресу 500 DEC записать значение «5» ;
     # и опросить ошибки снова и обновить окно с ошибками
     global current_wheel
 
     err = marathon.can_write(current_wheel, [5, 0, 0, 0, 500, 0, 0x2B, 0x10])
-    if not err:
-        errors = get_param(0)
-        print(errors)
-        if errors:
-            errors_str = ''
-            # надо как-то проверить когда нет ошибок и когда нет ответа
-            if errors != 0:
-                for err_nom, err_str in errors_list.items():
-                    if errors & err_nom:
-                        errors_str += err_str + '\n'
-                QMessageBox.critical(window, "Ошибка ", "Похоже, удалить все ошибки не удалось", QMessageBox.Ok)
-            else:
-                errors_str = 'Нет ошибок'
-                QMessageBox.information(window, "Успех", "Ошибок больше нет", QMessageBox.Ok)
-            window.tb_errors.setText(errors_str)
-            return
-    QMessageBox.critical(window, "Ошибка ", "Попытка удаления ошибок не удалась", QMessageBox.Ok)
+    # if not err:
+    errors = get_param(0)
+    print(errors)
+    if errors:
+        errors_str = ''
+        # надо как-то проверить когда нет ошибок и когда нет ответа
+        if errors != 0:
+            for err_nom, err_str in errors_list.items():
+                if errors & err_nom:
+                    errors_str += err_str + '\n'
+            QMessageBox.critical(window, "Ошибка ", "Похоже, удалить все ошибки не удалось", QMessageBox.Ok)
+        else:
+            errors_str = 'Нет ошибок'
+            QMessageBox.information(window, "Успех", "Ошибок больше нет", QMessageBox.Ok)
+        window.tb_errors.setText(errors_str)
+        return
+    # print('err = ' + err)
+    # QMessageBox.critical(window, "Ошибка ", "Попытка удаления ошибок не удалась", QMessageBox.Ok)
 
 
 def change_current_wheel(target_wheel: int):
