@@ -5,20 +5,16 @@
     невозможно. Что-то делается с формой только после выхода из функции - один выход -переходить на параллельные потоки
 
 - если изменилось дескрипшн - сохранять описание параметра в файл с дескрипшн
-
-- выбрасывает ошибку при установке задней или передней оси(- НЕ МОЖЕТ ПЕРЕКЛЮЧИТЬ РЕЙКУ С ЗАДНЕЙ НА ПЕРЕДНЮЮ)
-(- в списке осей нет индикации заводской настройки)
-
-- не записывает значения параметров из файла настроек в устройство
-- после сохранения параметров БУРР их нет в листе param_list
 - автоматическое добавление слайдеров из списка
 - в слайдеры добавить коэффициенты регулятора
-- расширить диапазон зоны нечувствительности до 0,05%
 - расширить диапазон токовый до 110А
-- сделать токовые слайдеры одинаковыми по максимуму и минимуму
 - сохраняет файл с настройками рейки даже если величин нет
 - сделать нормальную проверку записываемого параметра
+- если UINT32 надо посылать 23, считывать и использовать 4 первых байта
+- тоже самое для INT32, UINT8, INT8, UINT16 - сейчас я принимаю только ИНТ16
 --------------------------------------------хотелки-------------------------
+- слайдер срастить со спинбоксом а не с меткой и запаралеллить
+- парсить частоиспользуемые из файла, его же и превращать в слайдеры со спинбоксами
 - сделать поиск параметра по описанию и названию
 - вместо блокировки любых нажатий использовать другой поток для опроса параметров
 - задел под парсинг файла с настройками от рткона
@@ -27,7 +23,10 @@
 -- скале_валуе - если есть, и не ноль, то запихиваем в скале))) - если это когда-то понадобится
 - ограничить число записываемых параметров не более 30 штук, если в файле больше - брать только первые 50,
  либо предлагать выбрать другой файл
+ - не записывает значения параметров из файла настроек в устройство(решил это пока не делать)
+
 ---------------------------------------------непонятки----------------------
+- после сохранения параметров БУРР их нет в листе param_list(непонятно описал и непонятно зачем это надо)
 - НЕ ЗАПИСЫВАЕТ ПОРЯДОК БАЙТ - не подтвердилось
 (- вылетает после установки часто используемых параметром, при этом сам параметр успевает
 изменить) - не подтвердилось
@@ -37,6 +36,10 @@
 какая-то непонятная фигня, есть подозрения, что это особенность работы марафона - без перезагрузки он периодически
 отваливается . Выход - переход на квайзер и кан-хакер
 --------------------------------------------исправил--------------------------------
+- расширить диапазон зоны нечувствительности до 0,05%
+- сделать токовые слайдеры одинаковыми по максимуму и минимуму
+- выбрасывает ошибку при установке задней или передней оси(- НЕ МОЖЕТ ПЕРЕКЛЮЧИТЬ РЕЙКУ С ЗАДНЕЙ НА ПЕРЕДНЮЮ)
+(- в списке осей нет индикации заводской настройки)
 - не обновляет параметры визуально
 - не закрывает канал после записи параметра
 - (когда нет подключения при переключении на другую вкладку в основных параметрах пока
@@ -170,7 +173,7 @@ often_used_params = {
 
 errors_list = {0x1: 'авария модуля',
                0x2: 'кз на выходе',
-               0x4: 'авария датчика положени/калибровки',
+               0x4: 'авария датчика положения/калибровки',
                0x8: 'DIN stop Fault',
                0x10: 'REZERV',
                0x20: 'No Move Fault',
@@ -203,7 +206,7 @@ def erase_burr_errors():
     # и опросить ошибки снова и обновить окно с ошибками
     global current_wheel
 
-    err = marathon.can_write(current_wheel, [5, 0, 0, 0, 500, 0, 0x2B, 0x10])
+    err = marathon.can_write(current_wheel, [5, 0, 0, 0, 0xF4, 0x01, 0x2B, 0x10])
     # if not err:
     errors = get_param(0)
     print(errors)
@@ -480,12 +483,17 @@ def show_compare_list(compare_param_dict: dict):
     window.params_table_2.itemChanged.disconnect()
     for i in range(window.params_table_2.rowCount()):
         param_name = window.params_table_2.item(i, 0).text()
+        param_address = window.params_table_2.item(i, 2).text()  # значение адреса в HEX
         param_from_device = window.params_table_2.item(i, window.value_col)
         if param_from_device:
             param_from_device = param_from_device.text()
         else:
             param_from_device = ''
-        param_from_file = str(compare_param_dict[param_name])
+        # param_from_file = str(compare_param_dict[param_name])
+        if param_address in compare_param_dict.keys():
+            param_from_file = str(compare_param_dict[param_address])
+        else:
+            param_from_file = 'nan'
         value_Item = QTableWidgetItem(param_from_file)
         value_Item.setFlags(value_Item.flags() & ~Qt.ItemIsEditable)
         if param_from_device != param_from_file:
@@ -511,7 +519,7 @@ def make_compare_list():
         if str(param['editable']) != 'nan':
             # value = str(param['value'].split(':')[0].replace(',', '.'))
             value = int(param['value'])
-            compare_param_dict[param['name']] = value
+            compare_param_dict[hex(int(param['address']))] = value
     show_compare_list(compare_param_dict)
     window.load_to_device_button.setEnabled(True)
 
@@ -596,7 +604,7 @@ def show_empty_params_list(list_of_params: list, table: str):
 
 
 def update_param():
-    dialog.show()
+    # dialog.show()
     if update_connect_button():  # проверка что есть связь с блоком
         if window.tab_burr.currentWidget() == window.often_used_params:
             window.best_params()
@@ -1010,11 +1018,12 @@ window = ExampleApp()  # Создаём объект класса ExampleApp
 dialog = ExampleDialog()
 dir_path = str(pathlib.Path.cwd())
 # vmu_param_file = 'table_for_params.xlsx'
-vmu_param_file = 'table_for_params_forward_wheels.xlsx'
+vmu_param_file = 'table_for_params_front_wheels&both_steer.xlsx'
 vmu_params_list = fill_vmu_list(pathlib.Path(dir_path, 'Tables', vmu_param_file))
 # заполняю дату с адресами параметров из списка, который задаётся в файле
 req_list = feel_req_list(vmu_params_list)
 
+# burr_param_file = 'burr_params_for_new.xls'
 burr_param_file = 'burr_params.xls'
 excel_data_df = pandas.read_excel(pathlib.Path(dir_path, 'Tables', burr_param_file))
 params_list = excel_data_df.to_dict(orient='records')
