@@ -112,7 +112,13 @@ class Wheel():
 Front_Wheel = 0x4F5
 Rear_Wheel = 0x4F6
 current_wheel = Front_Wheel
-
+value_type_dict = {'UINT16': 0x2B,
+                   'INT16': 0x2B,
+                   'UINT32': 0x23,
+                   'INT32': 0x23,
+                   'UINT8': 0x2F,
+                   'INT8': 0x2F,
+                   'DATA': 0x23}
 often_used_params = {
     'zone_of_insensitivity': {'scale': 100,
                               'value': 0,
@@ -705,16 +711,42 @@ def set_param(address: int, value: int):
 
 def get_param(address):
     data = 'OK'
+    no_params = True
     request_iteration = 3
     address = int(address)
     LSB = address & 0xFF
     MSB = ((address & 0xFF00) >> 8)
     # на случай если не удалось с первого раза поймать параметр,
     # делаем ещё request_iteration запросов
+    for par in params_list:
+        if par['address'] == address:
+            no_params = False
+            break
+    if no_params:
+        return False
+    if par['type'] in value_type_dict.keys():
+        value_type = value_type_dict[par['type']]
+    else:
+        value_type = 0x2B
     for i in range(request_iteration):
-        data = marathon.can_request(current_wheel, current_wheel + 2, [0, 0, 0, 0, LSB, MSB, 0x2B, 0x03])
+        data = marathon.can_request(current_wheel, current_wheel + 2, [0, 0, 0, 0, LSB, MSB, value_type, 0x03])
         if not isinstance(data, str):
-            return (data[1] << 8) + data[0]
+            value = (data[3] << 24) + (data[2] << 16) + (data[1] << 8) + data[0]
+            if par['type'] == 'UINT8':
+                value = ctypes.c_uint8(value).value
+            elif par['type'] == 'UINT16':
+                value = ctypes.c_uint16(value).value
+            elif par['type'] == 'UINT32':
+                value = ctypes.c_uint32(value).value
+            elif par['type'] == 'INT8':
+                value = ctypes.c_int8(value).value
+            elif par['type'] == 'INT16':
+                value = ctypes.c_int16(value).value
+            elif par['type'] == 'INT32':
+                value = ctypes.c_int32(value).value
+            else:
+                value = ctypes.c_uint16(value).value
+            return value
     QMessageBox.critical(window, "Ошибка ", 'Нет подключения\n' + data, QMessageBox.Ok)
     return False
 
