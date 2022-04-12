@@ -1055,8 +1055,13 @@ vmu_params_list = fill_vmu_list(pathlib.Path(dir_path, 'Tables', vmu_param_file)
 # заполняю дату с адресами параметров из списка, который задаётся в файле
 req_list = feel_req_list(vmu_params_list)
 
+burr_param_file = QFileDialog.getOpenFileName(None,
+                                              'Файл с настройками БУРР-30',
+                                              dir_path + '\\Tables',
+                                              "Excel tables (*.xls)")[0]
+# burr_param_file = 'burr30_v048.xls'
 # burr_param_file = 'burr_params_for_new.xls'
-burr_param_file = 'burr_params.xls'
+# burr_param_file = 'burr_params.xls'
 excel_data_df = pandas.read_excel(pathlib.Path(dir_path, 'Tables', burr_param_file))
 params_list = excel_data_df.to_dict(orient='records')
 bookmark_dict = {}
