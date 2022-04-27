@@ -524,7 +524,7 @@ def make_compare_list():
     for param in par_list:
         if str(param['editable']) != 'nan':
             # value = str(param['value'].split(':')[0].replace(',', '.'))
-            value = int(param['value'])
+            value = int(param['value'])#.replace(',', '.')
             compare_param_dict[hex(int(param['address']))] = value
     show_compare_list(compare_param_dict)
     window.load_to_device_button.setEnabled(True)
