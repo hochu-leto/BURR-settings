@@ -55,6 +55,8 @@
   Данный сектор находится в диапазоне адресов с 300 по 349 DEC.
  - СДЕЛАЛ
 """
+import inspect
+from pprint import pprint
 
 '''
 Небольшая инструкция по работе с БУРР-30 в тестовом режиме Для работы блока БУРР-30 в режиме тестового управления 
@@ -198,11 +200,14 @@ errors_list = {0x1: 'авария модуля',
 compare_param_dict = {}
 
 
-def change_burr_params_file():
-    file = QFileDialog.getOpenFileName(None,
-                                                  'Файл с настройками БУРР-30',
-                                                  dir_path + '\\Tables',
-                                                  "Excel tables (*.xls)")[0]
+def change_burr_params_file(file):
+    if not file:
+        file = QFileDialog.getOpenFileName(None,
+                                                      'Файл с настройками БУРР-30',
+                                                      dir_path + '\\Tables',
+                                                      "Excel tables (*.xls)")[0]
+        if not file:
+            file = new_burr_param_file
     global params_list, editable_params_list, bookmark_dict
     excel_data_df = pandas.read_excel(pathlib.Path(dir_path, 'Tables', file))
     params_list = excel_data_df.to_dict(orient='records')
@@ -211,7 +216,8 @@ def change_burr_params_file():
     prev_name = ''
     wr_err = ''
     editable_params_list = []
-    if QApplication.instance().sender() == window.change_file_btn:
+    if QApplication.instance().sender() == window.change_file_btn or \
+            inspect.currentframe().f_back.f_code.co_name == update_connect_button.__name__:
         window.list_bookmark.clear()
         window.params_table.itemChanged.disconnect()
         window.params_table_2.itemChanged.disconnect()
@@ -460,14 +466,16 @@ def update_param():
 
 
 def update_connect_button():
-    software_version = get_param(42)
-    print('software_version = ' + str(software_version))
-    if software_version:
+    global firmware_version
+    firmware_version = get_param(42)
+    print('software_version = ' + str(firmware_version))
+    change_burr_params_file('')
+    if firmware_version:
         window.pushButton_2.setText('Обновить')
         font = QtGui.QFont()
         font.setBold(False)
         window.pushButton_2.setFont(font)
-        return software_version
+        return firmware_version
 
     window.pushButton_2.setText('Подключиться')
     font = QtGui.QFont()
@@ -794,17 +802,13 @@ class ExampleApp(QtWidgets.QMainWindow):
 app = QApplication([])
 window = ExampleApp()  # Создаём объект класса ExampleApp
 dir_path = str(pathlib.Path.cwd())
-# заполняю дату с адресами параметров из списка, который задаётся в файле
-
 # burr_param_file = 'burr30_v048.xls'
-# burr_param_file = 'burr_params_for_new.xls'
-# burr_param_file = 'burr_params.xls'
+new_burr_param_file = 'new_burr.xls'
+old_burr_param_file = 'old_burr.xls'
 
-change_burr_params_file()
-
+change_burr_params_file(new_burr_param_file)
+firmware_version = 48
 marathon = CANMarathon()
-# для релиза отключу панель настройки рулевых реек и кнопку выбора файла параметров для КВУ
-# window.burr30.setEnabled(False)
 # первое подключение и последующее обновление текущего вида параметров - второе работает не очень
 window.pushButton_2.clicked.connect(update_param)
 # переключение между задним и передним блоком
@@ -812,7 +816,6 @@ window.radioButton.toggled.connect(rb_clicked)
 window.radioButton_2.toggled.connect(rb_clicked)
 # сохранение всех параметров из текущей рейки в файл
 window.pushButton.clicked.connect(save_all_params)
-
 #  щелчок на списке групп параметров ведёт к выводу этих параметров
 window.list_bookmark.itemClicked.connect(window.list_of_params_table)
 window.params_table.resizeColumnsToContents()
