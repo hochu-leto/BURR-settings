@@ -55,8 +55,6 @@
   Данный сектор находится в диапазоне адресов с 300 по 349 DEC.
  - СДЕЛАЛ
 """
-import inspect
-from pprint import pprint
 
 '''
 Небольшая инструкция по работе с БУРР-30 в тестовом режиме Для работы блока БУРР-30 в режиме тестового управления 
@@ -91,6 +89,8 @@ from pprint import pprint
 - включаем питание +24 В и проверяем правильность работы БУРР-30 в основном режиме.
 
 '''
+import inspect
+from pprint import pprint
 
 import ctypes
 import datetime
@@ -109,6 +109,10 @@ class Wheel():
     req_id = 0
     ans_id = 0
 
+
+new_burr_param_file = 'new_burr.xls'
+old_burr_param_file = 'old_burr.xls'
+current_burr_param_file = new_burr_param_file
 
 Front_Wheel = 0x4F5
 Rear_Wheel = 0x4F6
@@ -203,9 +207,9 @@ compare_param_dict = {}
 def change_burr_params_file(file):
     if not file:
         file = QFileDialog.getOpenFileName(None,
-                                                      'Файл с настройками БУРР-30',
-                                                      dir_path + '\\Tables',
-                                                      "Excel tables (*.xls)")[0]
+                                           'Файл с настройками БУРР-30',
+                                           dir_path + '\\Tables',
+                                           "Excel tables (*.xls)")[0]
         if not file:
             file = new_burr_param_file
     global params_list, editable_params_list, bookmark_dict
@@ -366,7 +370,7 @@ def make_compare_list():
     for param in par_list:
         if str(param['editable']) != 'nan':
             # value = str(param['value'].split(':')[0].replace(',', '.'))
-            value = int(param['value'])#.replace(',', '.')
+            value = int(param['value'])  # .replace(',', '.')
             compare_param_dict[hex(int(param['address']))] = value
     show_compare_list(compare_param_dict)
     window.load_to_device_button.setEnabled(True)
@@ -466,11 +470,17 @@ def update_param():
 
 
 def update_connect_button():
-    global firmware_version
+
     firmware_version = get_param(42)
-    print('software_version = ' + str(firmware_version))
-    change_burr_params_file('')
+    print('firmware_version = ' + str(firmware_version))
+
     if firmware_version:
+        if firmware_version < 41:
+            file = old_burr_param_file
+        else:
+            file = new_burr_param_file
+        if file != current_burr_param_file:
+            change_burr_params_file(file)
         window.pushButton_2.setText('Обновить')
         font = QtGui.QFont()
         font.setBold(False)
@@ -802,12 +812,7 @@ class ExampleApp(QtWidgets.QMainWindow):
 app = QApplication([])
 window = ExampleApp()  # Создаём объект класса ExampleApp
 dir_path = str(pathlib.Path.cwd())
-# burr_param_file = 'burr30_v048.xls'
-new_burr_param_file = 'new_burr.xls'
-old_burr_param_file = 'old_burr.xls'
-
-change_burr_params_file(new_burr_param_file)
-firmware_version = 48
+change_burr_params_file(current_burr_param_file)
 marathon = CANMarathon()
 # первое подключение и последующее обновление текущего вида параметров - второе работает не очень
 window.pushButton_2.clicked.connect(update_param)
