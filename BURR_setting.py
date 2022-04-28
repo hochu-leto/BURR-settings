@@ -5,20 +5,16 @@
     невозможно. Что-то делается с формой только после выхода из функции - один выход -переходить на параллельные потоки
 
 - если изменилось дескрипшн - сохранять описание параметра в файл с дескрипшн
-
-- выбрасывает ошибку при установке задней или передней оси(- НЕ МОЖЕТ ПЕРЕКЛЮЧИТЬ РЕЙКУ С ЗАДНЕЙ НА ПЕРЕДНЮЮ)
-(- в списке осей нет индикации заводской настройки)
-
-- не записывает значения параметров из файла настроек в устройство
-- после сохранения параметров БУРР их нет в листе param_list
 - автоматическое добавление слайдеров из списка
 - в слайдеры добавить коэффициенты регулятора
-- расширить диапазон зоны нечувствительности до 0,05%
 - расширить диапазон токовый до 110А
-- сделать токовые слайдеры одинаковыми по максимуму и минимуму
 - сохраняет файл с настройками рейки даже если величин нет
 - сделать нормальную проверку записываемого параметра
+- если UINT32 надо посылать 23, считывать и использовать 4 первых байта
+- тоже самое для INT32, UINT8, INT8, UINT16 - сейчас я принимаю только ИНТ16
 --------------------------------------------хотелки-------------------------
+- слайдер срастить со спинбоксом а не с меткой и запаралеллить
+- парсить частоиспользуемые из файла, его же и превращать в слайдеры со спинбоксами
 - сделать поиск параметра по описанию и названию
 - вместо блокировки любых нажатий использовать другой поток для опроса параметров
 - задел под парсинг файла с настройками от рткона
@@ -27,7 +23,10 @@
 -- скале_валуе - если есть, и не ноль, то запихиваем в скале))) - если это когда-то понадобится
 - ограничить число записываемых параметров не более 30 штук, если в файле больше - брать только первые 50,
  либо предлагать выбрать другой файл
+ - не записывает значения параметров из файла настроек в устройство(решил это пока не делать)
+
 ---------------------------------------------непонятки----------------------
+- после сохранения параметров БУРР их нет в листе param_list(непонятно описал и непонятно зачем это надо)
 - НЕ ЗАПИСЫВАЕТ ПОРЯДОК БАЙТ - не подтвердилось
 (- вылетает после установки часто используемых параметром, при этом сам параметр успевает
 изменить) - не подтвердилось
@@ -37,6 +36,10 @@
 какая-то непонятная фигня, есть подозрения, что это особенность работы марафона - без перезагрузки он периодически
 отваливается . Выход - переход на квайзер и кан-хакер
 --------------------------------------------исправил--------------------------------
+- расширить диапазон зоны нечувствительности до 0,05%
+- сделать токовые слайдеры одинаковыми по максимуму и минимуму
+- выбрасывает ошибку при установке задней или передней оси(- НЕ МОЖЕТ ПЕРЕКЛЮЧИТЬ РЕЙКУ С ЗАДНЕЙ НА ПЕРЕДНЮЮ)
+(- в списке осей нет индикации заводской настройки)
 - не обновляет параметры визуально
 - не закрывает канал после записи параметра
 - (когда нет подключения при переключении на другую вкладку в основных параметрах пока
@@ -52,18 +55,53 @@
   Данный сектор находится в диапазоне адресов с 300 по 349 DEC.
  - СДЕЛАЛ
 """
+
+'''
+Небольшая инструкция по работе с БУРР-30 в тестовом режиме Для работы блока БУРР-30 в режиме тестового управления 
+по CAN SDO-сообщениям необходимо выполнить следующие действия: 1. Перевести БУРР-30 в тестовый режим: в параметр с 
+адресом 506 DEC записываем значение «0»; 2. Рекомендуется в параметре 403 DEC указать в качестве предельного 
+ограничения в формате «ХХ.ХХ» в амперах минимальное значения тока, достаточного для движения рейки; 3. Для включения 
+электродвигателя рулевой рейки, в параметр по адресу 500 DEC записываем «1»; 4. Для выключения электродвигателя 
+рулевой рейки в параметр по адресу 500 DEC записываем значение «0»; 5. При необходимости выполнить сброс аварии 
+необходимо в параметре по адресу 500 DEC записать значение «5» ; 
+
+!!! ОБРАТИТЬ ВНИМАНИЕ НА СЛЕДУЮЩЕЕ !!! - вне зависимости от состояния дискретного входа «IGN» и от получаемых блоком 
+БУРР-30 команд в приходящих PDO-сообщениях ID=0x314, в тестовом режиме при записи «1» по адресу 500 DEC блок БУРР-30 
+СРАЗУ ЗАПУСТИТСЯ В РАБОТУ! - функция проверки соблюдения полярности при подключении электродвигателя при пуске в 
+тестовом режиме не работает, и если полярность подключения электромотора окажется неправильной, рейка на большой 
+скорости рванёт в крайнее положение с максимальным предельным током, указанным в параметре по адресу 403 DEC! - 
+дополнительные защиты от перегрузки по току в тестовом режиме не работают! - длительная работа электромотора с 
+большими токами может привести к перегреву его обмоток и поломке! - в тестовом режиме необходимо следить за токами 
+потребления электромотора рейки! 
+
+5. Для задания позиции рейки в формате от -1000 … +1000 следует воспользоваться параметром по следующему адресу:
+- 90 DEC, если рейка определена для работы в составе передней оси;
+- 91 DEC, если рейка определена для работы в составе задней оси;
+
+Тип рейки с определением точной привязки к оси ТС можно уточнить, считав содержимое по адресу 32 DEC:
+- 0 соответствует передней оси ТС;
+- 1 соответствует задней оси ТС.
+
+6. По окончании работ с рейкой в тестовом режиме следует выполнить следующие действия:
+- выключить электромотор, в параметр по адресу 500 DEC записываем значение «0»;
+- переводим БУРР-30 из тестового в основной режим работы, в параметр с адресом 506 DEC записываем значение «2»;
+- кратковременно выключаем питание +24 В для сбрасывания режима работы БУРР-30;
+- включаем питание +24 В и проверяем правильность работы БУРР-30 в основном режиме.
+
+'''
+import inspect
+from pprint import pprint
+
 import ctypes
 import datetime
 import pathlib
 
-from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, pyqtSlot, QRegExp
-from PyQt5.QtGui import QColor, QRegExpValidator
+from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, pyqtSlot, QRegExp, QSize
+from PyQt5.QtGui import QColor, QRegExpValidator, QIcon
 
-# sys.path.insert(1, 'C:\\Users\\timofey.inozemtsev\\PycharmProjects\\dll_power')
 from dll_power import CANMarathon
 from PyQt5 import QtWidgets, QtGui, uic
 from PyQt5.QtWidgets import QTableWidgetItem, QApplication, QMessageBox, QFileDialog
-import CANAnalyzer_ui
 import pandas as pandas
 
 
@@ -72,10 +110,20 @@ class Wheel():
     ans_id = 0
 
 
+new_burr_param_file = 'new_burr.xls'
+old_burr_param_file = 'old_burr.xls'
+current_burr_param_file = new_burr_param_file
+
 Front_Wheel = 0x4F5
 Rear_Wheel = 0x4F6
 current_wheel = Front_Wheel
-
+value_type_dict = {'UINT16': 0x2B,
+                   'INT16': 0x2B,
+                   'UINT32': 0x23,
+                   'INT32': 0x23,
+                   'UINT8': 0x2F,
+                   'INT8': 0x2F,
+                   'DATA': 0x23}
 often_used_params = {
     'zone_of_insensitivity': {'scale': 100,
                               'value': 0,
@@ -136,7 +184,7 @@ often_used_params = {
 
 errors_list = {0x1: 'авария модуля',
                0x2: 'кз на выходе',
-               0x4: 'авария датчика положени/калибровки',
+               0x4: 'авария датчика положения/калибровки',
                0x8: 'DIN stop Fault',
                0x10: 'REZERV',
                0x20: 'No Move Fault',
@@ -154,8 +202,75 @@ errors_list = {0x1: 'авария модуля',
                }
 
 compare_param_dict = {}
-rtcon_vmu = 0x1850460E
-vmu_rtcon = 0x594
+
+
+def change_burr_params_file(file):
+    if not file:
+        file = QFileDialog.getOpenFileName(None,
+                                           'Файл с настройками БУРР-30',
+                                           dir_path + '\\Tables',
+                                           "Excel tables (*.xls)")[0]
+        if not file:
+            file = new_burr_param_file
+    global params_list, editable_params_list, bookmark_dict
+    excel_data_df = pandas.read_excel(pathlib.Path(dir_path, 'Tables', file))
+    params_list = excel_data_df.to_dict(orient='records')
+    bookmark_dict = {}
+    bookmark_list = []
+    prev_name = ''
+    wr_err = ''
+    editable_params_list = []
+    if inspect.currentframe().f_back.f_code.co_name == update_connect_button.__name__:
+        window.list_bookmark.clear()
+        window.params_table.itemChanged.disconnect()
+        window.params_table_2.itemChanged.disconnect()
+    for param in params_list:
+        if str(param['editable']) != 'nan':
+            editable_params_list.append(param)
+        if param['code'].count('.') == 2:
+            param['address'] = int(param['address'])
+            bookmark_list.append(param)
+        elif param['code'].count('.') == 1:
+            bookmark_dict[prev_name] = bookmark_list  # это словарь где все параметры по группам
+            bookmark_list = []
+            if prev_name:
+                window.list_bookmark.addItem(prev_name)
+            prev_name = param['name']
+
+    window.list_bookmark.setCurrentRow(0)
+
+    #  заполняю все таблицы пустыми параметрами
+    show_empty_params_list(bookmark_dict[window.list_bookmark.currentItem().text()], 'params_table')
+    show_empty_params_list(editable_params_list, 'params_table_2')
+    # изменение параметра рейки ведёт к сохранению
+    window.params_table.itemChanged.connect(window.save_item)
+    window.params_table_2.itemChanged.connect(window.save_item)
+
+
+def erase_burr_errors():
+    # сброс аварии необходимо в параметре по адресу 500 DEC записать значение «5» ;
+    # и опросить ошибки снова и обновить окно с ошибками
+    global current_wheel
+
+    err = marathon.can_write(current_wheel, [5, 0, 0, 0, 0xF4, 0x01, 0x2B, 0x10])
+    # if not err:
+    errors = get_param(0)
+    print(errors)
+    if errors:
+        errors_str = ''
+        # надо как-то проверить когда нет ошибок и когда нет ответа
+        if errors != 0:
+            for err_nom, err_str in errors_list.items():
+                if errors & err_nom:
+                    errors_str += err_str + '\n'
+            QMessageBox.critical(window, "Ошибка ", "Похоже, удалить все ошибки не удалось", QMessageBox.Ok)
+        else:
+            errors_str = 'Нет ошибок'
+            QMessageBox.information(window, "Успех", "Ошибок больше нет", QMessageBox.Ok)
+        window.tb_errors.setText(errors_str)
+        return
+    # print('err = ' + err)
+    # QMessageBox.critical(window, "Ошибка ", "Попытка удаления ошибок не удалась", QMessageBox.Ok)
 
 
 def change_current_wheel(target_wheel: int):
@@ -203,131 +318,6 @@ def change_current_wheel(target_wheel: int):
     return False
 
 
-def show_waiting_tab():
-    window.recent_tab = window.CAN.currentWidget()
-    window.CAN.setEnabled(False)
-    window.CAN.addTab(window.hidden_tab, '')
-    window.CAN.setCurrentWidget(window.Wait_for_read)
-    window.show()
-
-
-def hide_waiting_tab():
-    window.CAN.removeTab(window.CAN.currentIndex())
-    window.CAN.setCurrentWidget(window.recent_tab)
-    window.CAN.setEnabled(True)
-
-
-def make_vmu_params_list():
-    fname = QFileDialog.getOpenFileName(window, 'Файл с нужными параметрами КВУ', dir_path,
-                                        "Excel tables (*.xlsx)")[0]
-    if fname and ('.xls' in fname):
-        excel_data = pandas.read_excel(fname)
-    else:
-        print('File no choose')
-        return False
-    true_tuple = ('name', 'address', 'scale', 'unit')
-    par_list = excel_data.to_dict(orient='records')
-    check_list = par_list[0].keys()
-    #  проверяю чтоб все нужные поля были в наличии
-    result_list = [item for item in true_tuple if item not in check_list]
-
-    if not result_list:
-        if len(str(par_list[0]['address'])) < 6:
-
-            QMessageBox.critical(window, "Ошибка ", 'Поле "address" должно быть\n'
-                                                    '2 байта индекса + 1 байт сабиндекса\n'
-                                                    'Например "0x520B09"',
-                                 QMessageBox.Ok)
-        else:
-            vmu_params_list = fill_vmu_list(fname)
-            window.vmu_param_table.itemChanged.connect(check_connection)
-            show_empty_params_list(vmu_params_list, 'vmu_param_table')
-    else:
-        QMessageBox.critical(window, "Ошибка ", 'В выбранном файле не хватает полей' + '\n' + ''.join(result_list),
-                             QMessageBox.Ok)
-
-
-def fill_vmu_list(file_name):
-    excel_data_df = pandas.read_excel(file_name)
-    vmu_params_list = excel_data_df.to_dict(orient='records')
-    exit_list = []
-    for par in vmu_params_list:
-        if str(par['name']) != 'nan':
-            if str(par['address']) != 'nan':
-                if isinstance(par['address'], str):
-                    if '0x' in par['address']:
-                        par['address'] = par['address'].rsplit('x')[1]
-                    par['address'] = int(par['address'], 16)
-                if str(par['scale']) == 'nan':
-                    par['scale'] = 1
-                if str(par['scaleB']) == 'nan':
-                    par['scaleB'] = 0
-                exit_list.append(par)
-    return exit_list
-
-
-def const_req_vmu_params():
-    if not window.vmu_req_thread.running:
-        window.vmu_req_thread.running = True
-        window.thread_to_record.start()
-    else:
-        window.vmu_req_thread.running = False
-        window.thread_to_record.terminate()
-
-
-def adding_to_csv_file(name_or_value: str):
-    data = []
-    data_string = []
-    for par in vmu_params_list:
-        data_string.append(par[name_or_value])
-    dt = datetime.datetime.now()
-    dt = dt.strftime("%H:%M:%S.%f")
-    if name_or_value == 'name':
-        dt = 'time'
-    data_string.append(dt)
-    data.append(data_string)
-    df = pandas.DataFrame(data)
-    df.to_csv(window.vmu_req_thread.recording_file_name,
-              mode='a',
-              header=False,
-              index=False,
-              encoding='windows-1251')
-
-
-def start_btn_pressed():
-    # если записи параметров ещё нет, включаю ее
-    if not window.record_vmu_params:
-        window.vmu_req_thread.recording_file_name = pathlib.Path(pathlib.Path.cwd(),
-                                                                 'VMU records',
-                                                                 'vmu_record_' +
-                                                                 datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") +
-                                                                 '.csv')
-        window.constantly_req_vmu_params.setChecked(True)
-        window.constantly_req_vmu_params.setEnabled(False)
-        window.connect_vmu_btn.setEnabled(False)
-        window.record_vmu_params = True
-        window.start_record.setText('Стоп')
-        adding_to_csv_file('name')
-    #  если запись параметров ведётся, отключаю её и сохраняю файл
-    else:
-        window.record_vmu_params = False
-        window.start_record.setText('Запись')
-        window.constantly_req_vmu_params.setChecked(False)
-        window.constantly_req_vmu_params.setEnabled(True)
-        window.connect_vmu_btn.setEnabled(True)
-        # Reading the csv file
-        file_name = str(window.vmu_req_thread.recording_file_name)
-        df_new = pandas.read_csv(file_name, encoding='windows-1251')
-        file_name = file_name.replace('.csv', '_excel.xlsx', 1)
-        # saving xlsx file
-        GFG = pandas.ExcelWriter(file_name)
-        df_new.to_excel(GFG, index=False)
-        GFG.save()
-        QMessageBox.information(window, "Успешный Успех", 'Файл с записью параметров КВУ\n' +
-                                'ищи в папке "VMU records"',
-                                QMessageBox.Ok)
-
-
 def feel_req_list(p_list: list):
     req_list = []
     for par in p_list:
@@ -340,86 +330,21 @@ def feel_req_list(p_list: list):
     return req_list
 
 
-def connect_vmu():
-    param_list = [[0x40, 0x18, 0x10, 0x02, 0x00, 0x00, 0x00, 0x00]]
-    # Проверяю, есть ли подключение к кву
-    check = marathon.can_request_many(rtcon_vmu, vmu_rtcon, param_list)
-    if isinstance(check, list):
-        check = check[0]
-    if isinstance(check, str):
-        QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + check, QMessageBox.Ok)
-        window.connect_vmu_btn.setText('Подключиться')
-        window.constantly_req_vmu_params.setEnabled(False)
-        window.start_record.setEnabled(False)
-        return False
-
-    # запрашиваю список полученных ответов
-    ans_list = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
-    fill_vmu_params_values(ans_list)
-    # отображаю сообщения из списка
-    window.show_new_vmu_params()
-    # разблокирую все кнопки и чекбоксы
-    window.connect_vmu_btn.setText('Обновить')
-    window.constantly_req_vmu_params.setEnabled(True)
-    window.start_record.setEnabled(True)
-    return True
-
-
-def fill_vmu_params_values(ans_list: list):
-    i = 0
-    for par in vmu_params_list:
-        message = ans_list[i]
-        if not isinstance(message, str):
-            value = (message[7] << 24) + \
-                    (message[6] << 16) + \
-                    (message[5] << 8) + message[4]
-            #  вывод на печать полученных ответов
-            # print(par['name'])
-            # for j in message:
-            #     print(hex(j), end=' ')
-            # если множителя нет, то берём знаковое int16
-            if par['scale'] == 1:
-                par['value'] = ctypes.c_int16(value).value
-            # возможно, здесь тоже нужно вытаскивать знаковое int, ага, int32
-            else:
-                value = ctypes.c_int32(value).value
-                # print(' = ' + str(value), end=' ')
-                par['value'] = (value / par['scale'])
-                # print(' = ' + str(par['value']))
-            par['value'] = float('{:.2f}'.format(par['value']))
-        i += 1
-    print('Новые параметры КВУ записаны ')
-
-
-# очень опасная процедура - надо очень пристально ее проверить
-def write_all_from_file_to_device():
-    if get_param(42):  # проверка что есть связь с блоком
-        window.params_table_2.itemChanged.disconnect()
-        for i in range(window.params_table_2.rowCount()):
-            param_from_device = window.params_table_2.item(i, window.value_col)
-            param_from_file = window.params_table_2.item(i, window.value_col + 1)
-            if param_from_device:
-                if param_from_device.text() == param_from_file.text():
-                    break
-            value_Item = QTableWidgetItem(param_from_file.text())
-            param_from_file.setBackground(QColor('white'))
-            window.params_table_2.setItem(i, window.value_col, value_Item)
-            window.params_table_2.setItem(i, window.value_col + 1, param_from_file)
-            address = get_address(window.params_table_2.item(i, 0))
-            set_param(address, int(param_from_file.text()))
-        window.params_table_2.itemChanged.connect(window.save_item)
-
-
 def show_compare_list(compare_param_dict: dict):
     window.params_table_2.itemChanged.disconnect()
     for i in range(window.params_table_2.rowCount()):
         param_name = window.params_table_2.item(i, 0).text()
+        param_address = window.params_table_2.item(i, 2).text()  # значение адреса в HEX
         param_from_device = window.params_table_2.item(i, window.value_col)
         if param_from_device:
             param_from_device = param_from_device.text()
         else:
             param_from_device = ''
-        param_from_file = str(compare_param_dict[param_name])
+        # param_from_file = str(compare_param_dict[param_name])
+        if param_address in compare_param_dict.keys():
+            param_from_file = str(compare_param_dict[param_address])
+        else:
+            param_from_file = 'nan'
         value_Item = QTableWidgetItem(param_from_file)
         value_Item.setFlags(value_Item.flags() & ~Qt.ItemIsEditable)
         if param_from_device != param_from_file:
@@ -433,7 +358,7 @@ def make_compare_list():
     global compare_param_dict
     fname = QFileDialog.getOpenFileName(window,
                                         'Файл с настройками БУРР-30',
-                                        dir_path,
+                                        dir_path + '\\Burr settings',
                                         "Excel tables (*.xlsx)")[0]
     if fname and ('.xls' in fname):
         excel_data = pandas.read_excel(fname)
@@ -444,10 +369,9 @@ def make_compare_list():
     for param in par_list:
         if str(param['editable']) != 'nan':
             # value = str(param['value'].split(':')[0].replace(',', '.'))
-            value = int(param['value'])
-            compare_param_dict[param['name']] = value
+            value = int(param['value'])  # .replace(',', '.')
+            compare_param_dict[hex(int(param['address']))] = value
     show_compare_list(compare_param_dict)
-    window.load_to_device_button.setEnabled(True)
 
 
 def check_connection():
@@ -544,14 +468,23 @@ def update_param():
 
 
 def update_connect_button():
-    software_version = get_param(42)
-    print('software_version = ' + str(software_version))
-    if software_version:
+    global current_burr_param_file
+    firmware_version = get_param(42)
+    print('firmware_version = ' + str(firmware_version))
+
+    if firmware_version:
+        if firmware_version < 41:
+            file = old_burr_param_file
+        else:
+            file = new_burr_param_file
+        if file != current_burr_param_file:
+            change_burr_params_file(file)
+            current_burr_param_file = file
         window.pushButton_2.setText('Обновить')
         font = QtGui.QFont()
         font.setBold(False)
         window.pushButton_2.setFont(font)
-        return software_version
+        return firmware_version
 
     window.pushButton_2.setText('Подключиться')
     font = QtGui.QFont()
@@ -630,16 +563,42 @@ def set_param(address: int, value: int):
 
 def get_param(address):
     data = 'OK'
+    no_params = True
     request_iteration = 3
     address = int(address)
     LSB = address & 0xFF
     MSB = ((address & 0xFF00) >> 8)
     # на случай если не удалось с первого раза поймать параметр,
     # делаем ещё request_iteration запросов
+    for par in params_list:
+        if par['address'] == address:
+            no_params = False
+            break
+    if no_params:
+        return False
+    if par['type'] in value_type_dict.keys():
+        value_type = value_type_dict[par['type']]
+    else:
+        value_type = 0x2B
     for i in range(request_iteration):
-        data = marathon.can_request(current_wheel, current_wheel + 2, [0, 0, 0, 0, LSB, MSB, 0x2B, 0x03])
+        data = marathon.can_request(current_wheel, current_wheel + 2, [0, 0, 0, 0, LSB, MSB, value_type, 0x03])
         if not isinstance(data, str):
-            return (data[1] << 8) + data[0]
+            value = (data[3] << 24) + (data[2] << 16) + (data[1] << 8) + data[0]
+            if par['type'] == 'UINT8':
+                value = ctypes.c_uint8(value).value
+            elif par['type'] == 'UINT16':
+                value = ctypes.c_uint16(value).value
+            elif par['type'] == 'UINT32':
+                value = ctypes.c_uint32(value).value
+            elif par['type'] == 'INT8':
+                value = ctypes.c_int8(value).value
+            elif par['type'] == 'INT16':
+                value = ctypes.c_int16(value).value
+            elif par['type'] == 'INT32':
+                value = ctypes.c_int32(value).value
+            else:
+                value = ctypes.c_uint16(value).value
+            return value
     QMessageBox.critical(window, "Ошибка ", 'Нет подключения\n' + data, QMessageBox.Ok)
     return False
 
@@ -656,8 +615,11 @@ def get_all_params():
 
 def save_all_params():
     if get_all_params():
+        wheel = 'forward_'
+        if current_wheel == Rear_Wheel:
+            wheel = 'rear_'
         file_name = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        file_name = 'Burr-30_' + file_name + '.xlsx'
+        file_name = 'burr30_' + wheel + file_name + '.xlsx'
         full_file_name = pathlib.Path(dir_path, 'Burr settings', file_name)
         pandas.DataFrame(params_list).to_excel(full_file_name, index=False)
         print(' Save file success')
@@ -680,108 +642,26 @@ def has_wheel(wheel):
         return False
 
 
-#  поток для опроса и записи в файл параметров кву
-class VMUSaveToFileThread(QObject):
-    running = False
-    new_vmu_params = pyqtSignal(list)
-    recording_file_name = ''
-
-    # метод, который будет выполнять алгоритм в другом потоке
-    def run(self):
-        while True:
-            if window.record_vmu_params:
-                adding_to_csv_file('value')
-            #  Получаю новые параметры от КВУ
-            ans_list = []
-            answer = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
-            # Если происходит разрыв связи в блоком во время чтения
-            #  И прилетает строка ошибки, то надо запихнуть её в список
-            if isinstance(answer, str):
-                ans_list.append(answer)
-            else:
-                ans_list = answer.copy()
-            #  И отправляю их в основной поток для обновления
-            self.new_vmu_params.emit(ans_list)
-
-            response_time = window.response_time_edit.text()
-            if response_time:
-                response_time = int(response_time)
-                if not response_time:
-                    response_time = 1000
-                if response_time < 10:
-                    response_time = 10
-                elif response_time > 60000:
-                    response_time = 60000
-            else:
-                response_time = 1000
-            QThread.msleep(response_time)
-
-
 class ExampleApp(QtWidgets.QMainWindow):
     name_col = 0
     desc_col = 1
     value_col = 3
     combo_col = 999
     unit_col = 3
-    record_vmu_params = False
 
     def __init__(self):
         super().__init__()
         # Это нужно для инициализации нашего дизайна
         uic.loadUi('CANAnalyzer_2.ui', self)
-        self.setWindowIcon(QtGui.QIcon('icon.png'))
-        # self.setupUi(self)
-        #  Создаю поток для опроса параметров кву
-        self.thread_to_record = QThread()
-        # создадим объект для выполнения кода в другом потоке
-        self.vmu_req_thread = VMUSaveToFileThread()
-        # перенесём объект в другой поток
-        self.vmu_req_thread.moveToThread(self.thread_to_record)
-        # после чего подключим все сигналы и слоты
-        self.vmu_req_thread.new_vmu_params.connect(self.add_new_vmu_params)
-        # подключим сигнал старта потока к методу run у объекта, который должен выполнять код в другом потоке
-        self.thread_to_record.started.connect(self.vmu_req_thread.run)
-        self.hidden_tab = self.Wait_for_read
-
-    @pyqtSlot(list)
-    def add_new_vmu_params(self, list_of_params: list):
-        # если в списке строка - нахер такой список, похоже, нас отсоединили
-        # но бывает, что параметр не прилетел в первый пункт списка, тогда нужно проверить,
-        # что хотя бы два пункта списка - строки( или придумать более изощерённую проверку)
-        if len(list_of_params) == 1:  # or (isinstance(list_of_params[0], str) and isinstance(list_of_params[1],
-            # str)):
-            window.connect_vmu_btn.setText('Подключиться')
-            window.connect_vmu_btn.setEnabled(True)
-            window.start_record.setText('Запись')
-            window.start_record.setEnabled(False)
-            window.constantly_req_vmu_params.setChecked(False)
-            window.constantly_req_vmu_params.setEnabled(False)
-            window.record_vmu_params = False
-            window.thread_to_record.running = False
-            window.thread_to_record.terminate()
-            QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + list_of_params[0], QMessageBox.Ok)
-        else:
-            fill_vmu_params_values(list_of_params)
-            self.show_new_vmu_params()
-
-    def show_new_vmu_params(self):
-        row = 0
-        for par in vmu_params_list:
-            value_Item = QTableWidgetItem(str(par['value']))
-            value_Item.setFlags(value_Item.flags() & ~Qt.ItemIsEditable)
-            self.vmu_param_table.setItem(row, window.value_col, value_Item)
-            row += 1
+        self.setWindowIcon(QIcon('EVO.ico'))
 
     def set_front_wheel(self, item):
         print('попытка установки передней оси')
         change_current_wheel(2)
-        self.best_params()
 
     def set_rear_wheel(self, item):
         print('попытка установки задней оси')
         change_current_wheel(3)
-        self.best_params()
-
 
     def set_byte_order(self, item):
         if item:
@@ -909,15 +789,6 @@ class ExampleApp(QtWidgets.QMainWindow):
                             table_param.itemChanged.connect(window.save_item)
 
                             return False
-                        # # ------------ЗДЕСЬ всё не так просто - надо разбираться как действовать при смене рейки
-                        # if address_param == 35:  # если произошла смена рейки, нужно поменять адреса
-                        #     if self.radioButton.isChecked():
-                        #         self.radioButton_2.setChecked()
-                        #     else:
-                        #         self.radioButton.setChecked()
-                        #     rb_clicked()
-                        #     return True
-                        # return False
                     else:
                         err = "Param isn't in available range - не прошёл проверку check_param"
                 else:
@@ -942,39 +813,10 @@ class ExampleApp(QtWidgets.QMainWindow):
 
 app = QApplication([])
 window = ExampleApp()  # Создаём объект класса ExampleApp
-
 dir_path = str(pathlib.Path.cwd())
-# vmu_param_file = 'table_for_params.xlsx'
-vmu_param_file = 'table_for_params_forward_wheels.xlsx'
-vmu_params_list = fill_vmu_list(pathlib.Path(dir_path, 'Tables', vmu_param_file))
-# заполняю дату с адресами параметров из списка, который задаётся в файле
-req_list = feel_req_list(vmu_params_list)
-
-burr_param_file = 'burr_params.xls'
-excel_data_df = pandas.read_excel(pathlib.Path(dir_path, 'Tables', burr_param_file))
-params_list = excel_data_df.to_dict(orient='records')
-bookmark_dict = {}
-bookmark_list = []
-prev_name = ''
-wr_err = ''
-editable_params_list = []
-for param in params_list:
-    if str(param['editable']) != 'nan':
-        editable_params_list.append(param)
-    if param['code'].count('.') == 2:
-        param['address'] = int(param['address'])
-        bookmark_list.append(param)
-    elif param['code'].count('.') == 1:
-        bookmark_dict[prev_name] = bookmark_list  # это словарь где все параметры по группам
-        bookmark_list = []
-        if prev_name:
-            window.list_bookmark.addItem(prev_name)
-        prev_name = param['name']
-
+change_burr_params_file(current_burr_param_file)
 marathon = CANMarathon()
-# для релиза отключу панель настройки рулевых реек и кнопку выбора файла параметров для КВУ
-# window.select_file_vmu_params.setEnabled(False)
-# window.burr30.setEnabled(False)
+
 # первое подключение и последующее обновление текущего вида параметров - второе работает не очень
 window.pushButton_2.clicked.connect(update_param)
 # переключение между задним и передним блоком
@@ -982,25 +824,10 @@ window.radioButton.toggled.connect(rb_clicked)
 window.radioButton_2.toggled.connect(rb_clicked)
 # сохранение всех параметров из текущей рейки в файл
 window.pushButton.clicked.connect(save_all_params)
-
-window.list_bookmark.setCurrentRow(0)
-#  заполняю все таблицы пустыми параметрами
-# заглушка
-window.vmu_param_table.itemChanged.connect(check_connection)
-show_empty_params_list(bookmark_dict[window.list_bookmark.currentItem().text()], 'params_table')
-show_empty_params_list(editable_params_list, 'params_table_2')
-show_empty_params_list(vmu_params_list, 'vmu_param_table')
-# изменение параметра рейки ведёт к сохранению
-window.params_table.itemChanged.connect(window.save_item)
-window.params_table_2.itemChanged.connect(window.save_item)
-
-# параметры КВУ только для просмотра, поэтому отключаю их изменение - оно для всех подключается в функции заполнения
-# window.vmu_param_table.itemChanged.disconnect()
 #  щелчок на списке групп параметров ведёт к выводу этих параметров
 window.list_bookmark.itemClicked.connect(window.list_of_params_table)
 window.params_table.resizeColumnsToContents()
 window.load_file_button.clicked.connect(make_compare_list)
-window.load_to_device_button.clicked.connect(write_all_from_file_to_device)
 
 #  часто используемые
 # выставляю в нули слайдеры и их метки
@@ -1022,20 +849,7 @@ window.set_rear_wheel_rb.toggled.connect(window.set_rear_wheel)
 # изменение порядка следования байт - работает тоже паршиво
 window.rb_big_endian.toggled.connect(window.set_byte_order)
 window.rb_little_endian.toggled.connect(window.set_byte_order)
+window.erase_err_btn.clicked.connect(erase_burr_errors)
 
-# главные кнопки для КВУ
-window.connect_vmu_btn.clicked.connect(connect_vmu)
-window.start_record.clicked.connect(start_btn_pressed)
-window.constantly_req_vmu_params.toggled.connect(const_req_vmu_params)
-# в окошке с задержкой опроса могут быть только цифры
-reg_ex_2 = QRegExp("[0-9]{1,5}")
-window.response_time_edit.setValidator(QRegExpValidator(reg_ex_2))
-window.response_time_edit.setText('1000')
-window.select_file_vmu_params.clicked.connect(make_vmu_params_list)
-
-# убираю вкладку с ожиданием и опросом кву
-window.CAN.removeTab(2)
-window.CAN.removeTab(0)
-window.load_to_device_button.hide()
 window.show()  # Показываем окно
 app.exec_()  # и запускаем приложение
