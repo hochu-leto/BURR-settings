@@ -56,39 +56,6 @@
  - СДЕЛАЛ
 """
 
-'''
-Небольшая инструкция по работе с БУРР-30 в тестовом режиме Для работы блока БУРР-30 в режиме тестового управления 
-по CAN SDO-сообщениям необходимо выполнить следующие действия: 1. Перевести БУРР-30 в тестовый режим: в параметр с 
-адресом 506 DEC записываем значение «0»; 2. Рекомендуется в параметре 403 DEC указать в качестве предельного 
-ограничения в формате «ХХ.ХХ» в амперах минимальное значения тока, достаточного для движения рейки; 3. Для включения 
-электродвигателя рулевой рейки, в параметр по адресу 500 DEC записываем «1»; 4. Для выключения электродвигателя 
-рулевой рейки в параметр по адресу 500 DEC записываем значение «0»; 5. При необходимости выполнить сброс аварии 
-необходимо в параметре по адресу 500 DEC записать значение «5» ; 
-
-!!! ОБРАТИТЬ ВНИМАНИЕ НА СЛЕДУЮЩЕЕ !!! - вне зависимости от состояния дискретного входа «IGN» и от получаемых блоком 
-БУРР-30 команд в приходящих PDO-сообщениях ID=0x314, в тестовом режиме при записи «1» по адресу 500 DEC блок БУРР-30 
-СРАЗУ ЗАПУСТИТСЯ В РАБОТУ! - функция проверки соблюдения полярности при подключении электродвигателя при пуске в 
-тестовом режиме не работает, и если полярность подключения электромотора окажется неправильной, рейка на большой 
-скорости рванёт в крайнее положение с максимальным предельным током, указанным в параметре по адресу 403 DEC! - 
-дополнительные защиты от перегрузки по току в тестовом режиме не работают! - длительная работа электромотора с 
-большими токами может привести к перегреву его обмоток и поломке! - в тестовом режиме необходимо следить за токами 
-потребления электромотора рейки! 
-
-5. Для задания позиции рейки в формате от -1000 … +1000 следует воспользоваться параметром по следующему адресу:
-- 90 DEC, если рейка определена для работы в составе передней оси;
-- 91 DEC, если рейка определена для работы в составе задней оси;
-
-Тип рейки с определением точной привязки к оси ТС можно уточнить, считав содержимое по адресу 32 DEC:
-- 0 соответствует передней оси ТС;
-- 1 соответствует задней оси ТС.
-
-6. По окончании работ с рейкой в тестовом режиме следует выполнить следующие действия:
-- выключить электромотор, в параметр по адресу 500 DEC записываем значение «0»;
-- переводим БУРР-30 из тестового в основной режим работы, в параметр с адресом 506 DEC записываем значение «2»;
-- кратковременно выключаем питание +24 В для сбрасывания режима работы БУРР-30;
-- включаем питание +24 В и проверяем правильность работы БУРР-30 в основном режиме.
-
-'''
 import inspect
 from pprint import pprint
 
@@ -269,8 +236,6 @@ def erase_burr_errors():
             QMessageBox.information(window, "Успех", "Ошибок больше нет", QMessageBox.Ok)
         window.tb_errors.setText(errors_str)
         return
-    # print('err = ' + err)
-    # QMessageBox.critical(window, "Ошибка ", "Попытка удаления ошибок не удалась", QMessageBox.Ok)
 
 
 def change_current_wheel(target_wheel: int):
@@ -519,11 +484,33 @@ def get_address(name: str):
     return 'nan'
 
 
-# какая-то хрень а не проверка
 def check_param(address: int, value):
-    if value.isdigit():
-        return int(value)
-    return 'nan'
+    try:
+        value = int(value)
+        for par in params_list:
+            if par['address'] == address:
+                if par['type'] == 'UINT8':
+                    value = ctypes.c_int8(value)
+                elif par['type'] == 'UINT16':
+                    value = ctypes.c_int16(value)
+                elif par['type'] == 'UINT32':
+                    value = ctypes.c_int32(value)
+                elif par['type'] == 'INT8':
+                    value = ctypes.c_uint8(value)
+                elif par['type'] == 'INT16':
+                    value = ctypes.c_uint16(value)
+                elif par['type'] == 'INT32':
+                    value = ctypes.c_uint32(value)
+                else:
+                    value = ctypes.c_uint16(value)
+                value = value.value
+                if value > par['max'] or value < par['min']:
+                    return 'Value is not in allowed range'
+                if str(par['scale']) != 'nan':
+                    value = value * 10**int(par['scale'])
+                return value
+    except:
+        return "Value isn't a number"
 
 
 def set_param(address: int, value: int):
@@ -598,6 +585,8 @@ def get_param(address):
                 value = ctypes.c_int32(value).value
             else:
                 value = ctypes.c_uint16(value).value
+            if str(par['scale']) != 'nan':
+                value = value / 10 ** int((par['scale']))
             return value
     QMessageBox.critical(window, "Ошибка ", 'Нет подключения\n' + data, QMessageBox.Ok)
     return False
@@ -775,7 +764,7 @@ class ExampleApp(QtWidgets.QMainWindow):
                 address_param = get_address(name_param)
                 if str(address_param) != 'nan':
                     value = check_param(address_param, new_value)
-                    if str(value) != 'nan':  # прошёл проверку
+                    if not isinstance(value, str):  # прошёл проверку
                         table_param.item(item.row(), self.value_col).setSelected(False)
 
                         if set_param(address_param, value):
@@ -790,7 +779,7 @@ class ExampleApp(QtWidgets.QMainWindow):
 
                             return False
                     else:
-                        err = "Param isn't in available range - не прошёл проверку check_param"
+                        err = "Param isn't in available range" + value
                 else:
                     err = "Can't find this value - не найден адрес параметра"
             elif item.column() == self.desc_col:
