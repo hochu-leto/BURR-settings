@@ -96,8 +96,8 @@ import ctypes
 import datetime
 import pathlib
 
-from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, pyqtSlot, QRegExp
-from PyQt5.QtGui import QColor, QRegExpValidator
+from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, pyqtSlot, QRegExp, QSize
+from PyQt5.QtGui import QColor, QRegExpValidator, QIcon
 
 from dll_power import CANMarathon
 from PyQt5 import QtWidgets, QtGui, uic
@@ -220,8 +220,7 @@ def change_burr_params_file(file):
     prev_name = ''
     wr_err = ''
     editable_params_list = []
-    if QApplication.instance().sender() == window.change_file_btn or \
-            inspect.currentframe().f_back.f_code.co_name == update_connect_button.__name__:
+    if inspect.currentframe().f_back.f_code.co_name == update_connect_button.__name__:
         window.list_bookmark.clear()
         window.params_table.itemChanged.disconnect()
         window.params_table_2.itemChanged.disconnect()
@@ -373,7 +372,6 @@ def make_compare_list():
             value = int(param['value'])  # .replace(',', '.')
             compare_param_dict[hex(int(param['address']))] = value
     show_compare_list(compare_param_dict)
-    window.load_to_device_button.setEnabled(True)
 
 
 def check_connection():
@@ -470,7 +468,7 @@ def update_param():
 
 
 def update_connect_button():
-
+    global current_burr_param_file
     firmware_version = get_param(42)
     print('firmware_version = ' + str(firmware_version))
 
@@ -481,6 +479,7 @@ def update_connect_button():
             file = new_burr_param_file
         if file != current_burr_param_file:
             change_burr_params_file(file)
+            current_burr_param_file = file
         window.pushButton_2.setText('Обновить')
         font = QtGui.QFont()
         font.setBold(False)
@@ -651,7 +650,7 @@ class ExampleApp(QtWidgets.QMainWindow):
         super().__init__()
         # Это нужно для инициализации нашего дизайна
         uic.loadUi('CANAnalyzer_2.ui', self)
-        self.setWindowIcon(QtGui.QIcon('icon.png'))
+        self.setWindowIcon(QIcon('EVO.ico'))
 
     def set_front_wheel(self, item):
         print('попытка установки передней оси')
@@ -814,6 +813,7 @@ window = ExampleApp()  # Создаём объект класса ExampleApp
 dir_path = str(pathlib.Path.cwd())
 change_burr_params_file(current_burr_param_file)
 marathon = CANMarathon()
+
 # первое подключение и последующее обновление текущего вида параметров - второе работает не очень
 window.pushButton_2.clicked.connect(update_param)
 # переключение между задним и передним блоком
@@ -846,7 +846,6 @@ window.set_rear_wheel_rb.toggled.connect(window.set_rear_wheel)
 # изменение порядка следования байт - работает тоже паршиво
 window.rb_big_endian.toggled.connect(window.set_byte_order)
 window.rb_little_endian.toggled.connect(window.set_byte_order)
-window.change_file_btn.clicked.connect(change_burr_params_file)
 window.erase_err_btn.clicked.connect(erase_burr_errors)
 
 window.show()  # Показываем окно
