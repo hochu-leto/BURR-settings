@@ -57,7 +57,7 @@
        </sizepolicy>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="all_params">
        <property name="sizePolicy">
@@ -190,7 +190,7 @@
                </font>
               </property>
               <property name="text">
-               <string>Загрузить файл с настройками</string>
+               <string>Загрузить файл для сравнения</string>
               </property>
              </widget>
             </item>

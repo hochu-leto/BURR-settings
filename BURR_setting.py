@@ -92,11 +92,11 @@ value_type_dict = {'UINT16': 0x2B,
                    'INT8': 0x2F,
                    'DATA': 0x23}
 often_used_params = {
-    'zone_of_insensitivity': {'scale': 100,
+    'zone_of_insensitivity': {'scale': 1,
                               'value': 0,
                               'address': 103,
                               'min': 0,
-                              'max': 5,
+                              'max': 1,
                               'unit': '%'},
     'warning_temperature': {'scale': 1,
                             'value': 0,
@@ -104,13 +104,13 @@ often_used_params = {
                             'min': 30,
                             'max': 80,
                             'unit': u'\N{DEGREE SIGN}'},
-    'warning_current': {'scale': 100,
+    'warning_current': {'scale': 1,
                         'value': 0,
                         'address': 105,
                         'min': 20,
                         'max': 100,
                         'unit': 'A'},
-    'cut_off_current': {'scale': 100,
+    'cut_off_current': {'scale': 1,
                         'value': 0,
                         'address': 403,
                         'min': 20,
@@ -333,8 +333,11 @@ def make_compare_list():
     par_list = excel_data.to_dict(orient='records')
     for param in par_list:
         if str(param['editable']) != 'nan':
-            # value = str(param['value'].split(':')[0].replace(',', '.'))
-            value = int(param['value'])  # .replace(',', '.')
+            if isinstance(param["value"], str):
+                value = param['value'].split(':')[0].replace(',', '.')
+            else:
+                value = '{:g}'.format(param["value"])
+
             compare_param_dict[hex(int(param['address']))] = value
     show_compare_list(compare_param_dict)
 
@@ -356,7 +359,7 @@ def show_value(col_value: int, list_of_params: list, table: str):
             else:
                 value = par['value']
 
-            value_Item = QTableWidgetItem(str(value))
+            value_Item = QTableWidgetItem('{:g}'.format(value))
 
             if str(par['editable']) != 'nan':
                 value_Item.setFlags(value_Item.flags() | Qt.ItemIsEditable)
@@ -485,32 +488,37 @@ def get_address(name: str):
 
 
 def check_param(address: int, value):
+    print(value)
+    print(type(value))
     try:
-        value = int(value)
-        for par in params_list:
-            if par['address'] == address:
-                if par['type'] == 'UINT8':
-                    value = ctypes.c_int8(value)
-                elif par['type'] == 'UINT16':
-                    value = ctypes.c_int16(value)
-                elif par['type'] == 'UINT32':
-                    value = ctypes.c_int32(value)
-                elif par['type'] == 'INT8':
-                    value = ctypes.c_uint8(value)
-                elif par['type'] == 'INT16':
-                    value = ctypes.c_uint16(value)
-                elif par['type'] == 'INT32':
-                    value = ctypes.c_uint32(value)
-                else:
-                    value = ctypes.c_uint16(value)
-                value = value.value
-                if value > par['max'] or value < par['min']:
-                    return 'Value is not in allowed range'
-                if str(par['scale']) != 'nan':
-                    value = value * 10**int(par['scale'])
-                return value
+        value = float(value)
     except:
         return "Value isn't a number"
+
+    for par in params_list:
+        if par['address'] == address:
+            if value > float(str(par['max']).replace(',', '.')) or value < float(str(par['min']).replace(',', '.')):
+                return 'Value is not in allowed range'
+            if str(par['scale']) != 'nan':
+                value = value * 10**int(par['scale'])
+            value = int(value)
+            if par['type'] == 'UINT8':
+                value = ctypes.c_int8(value)
+            elif par['type'] == 'UINT16':
+                value = ctypes.c_int16(value)
+            elif par['type'] == 'UINT32':
+                value = ctypes.c_int32(value)
+            elif par['type'] == 'INT8':
+                value = ctypes.c_uint8(value)
+            elif par['type'] == 'INT16':
+                value = ctypes.c_uint16(value)
+            elif par['type'] == 'INT32':
+                value = ctypes.c_uint32(value)
+            else:
+                value = ctypes.c_uint16(value)
+            value = value.value
+
+            return value
 
 
 def set_param(address: int, value: int):
@@ -587,6 +595,7 @@ def get_param(address):
                 value = ctypes.c_uint16(value).value
             if str(par['scale']) != 'nan':
                 value = value / 10 ** int((par['scale']))
+
             return value
     QMessageBox.critical(window, "Ошибка ", 'Нет подключения\n' + data, QMessageBox.Ok)
     return False
@@ -745,6 +754,8 @@ class ExampleApp(QtWidgets.QMainWindow):
                 param = param / par['scale']
                 label.setText(str(param) + par['unit'])
                 label.setStyleSheet('background-color: white')
+        #  временно
+        self.zone_of_insensitivity.setEnabled(False)
 
     def list_of_params_table(self, item):
         item = bookmark_dict[item.text()]
@@ -824,7 +835,8 @@ for name, par in often_used_params.items():
     slider = getattr(window, name)
     slider.setMinimum(par['min'] * par['scale'])
     slider.setMaximum(par['max'] * par['scale'])
-    slider.setPageStep(par['scale'])
+    slider.setSingleStep(par['scale']/10)
+    slider.setPageStep(par['scale']/4)
     slider.setTracking(False)
     slider.setValue(par['min'])
     slider.sliderMoved.connect(window.moved_slider)
