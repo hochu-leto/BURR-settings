@@ -2,6 +2,7 @@
 pyuic5 CANAnalyzer_2.ui -o CANAnalyzer_ui.py
 # exe файл из py
 pyinstaller --noconsole --noconfirm -i "favicon.ico" VMU_Logger.py
+pyinstaller --noconsole --onefile --noconfirm -i "icon.ico" BURR_setting.py
 # диалог
 pyuic5 dialo1.ui -o Dialog.py
 

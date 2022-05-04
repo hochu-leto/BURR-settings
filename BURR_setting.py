@@ -92,25 +92,25 @@ value_type_dict = {'UINT16': 0x2B,
                    'INT8': 0x2F,
                    'DATA': 0x23}
 often_used_params = {
-    'zone_of_insensitivity': {'scale': 1,
+    'zone_of_insensitivity': {'scale': 0,
                               'value': 0,
                               'address': 103,
                               'min': 0,
                               'max': 1,
                               'unit': '%'},
-    'warning_temperature': {'scale': 1,
+    'warning_temperature': {'scale': 0,
                             'value': 0,
                             'address': 104,
                             'min': 30,
                             'max': 80,
                             'unit': u'\N{DEGREE SIGN}'},
-    'warning_current': {'scale': 1,
+    'warning_current': {'scale': 2,
                         'value': 0,
                         'address': 105,
                         'min': 20,
                         'max': 100,
                         'unit': 'A'},
-    'cut_off_current': {'scale': 1,
+    'cut_off_current': {'scale': 2,
                         'value': 0,
                         'address': 403,
                         'min': 20,
@@ -674,7 +674,7 @@ class ExampleApp(QtWidgets.QMainWindow):
     def moved_slider(self, item):
         slider = QApplication.instance().sender()
         param = slider.objectName()
-        value = item / often_used_params[param]['scale']
+        value = item #/ often_used_params[param]['scale']
         label = getattr(self, 'lab_' + param)
         label.setText(str(value) + often_used_params[param]['unit'])
 
@@ -683,7 +683,7 @@ class ExampleApp(QtWidgets.QMainWindow):
         slider = QApplication.instance().sender()
         param = slider.objectName()
         item = slider.value()
-        value = item / often_used_params[param]['scale']
+        value = item * 10**param['scale']   #/ often_used_params[param]['scale']
         address = often_used_params[param]['address']
         label = getattr(self, 'lab_' + param)
         label.setText(str(value) + often_used_params[param]['unit'])
@@ -740,20 +740,20 @@ class ExampleApp(QtWidgets.QMainWindow):
 
         for name, par in often_used_params.items():
             par['value'] = get_param(int(par['address']))
-            if par['scale'] != 'nan':
-                slider = getattr(self, name)
-                label = getattr(self, 'lab_' + name)
-                if par['value'] != 'nan':
-                    param = par['value']
-                else:
-                    param = par['max'] * par['scale']
-                print(f'Param {name} is {param}')
-                slider.valueChanged.disconnect()
-                slider.setValue(param)
-                slider.valueChanged.connect(self.set_slider)
-                param = param / par['scale']
-                label.setText(str(param) + par['unit'])
-                label.setStyleSheet('background-color: white')
+
+            slider = getattr(self, name)
+            label = getattr(self, 'lab_' + name)
+            if par['value'] != 'nan':
+                param = par['value']
+            else:
+                param = par['max']
+            print(f'Param {name} is {param}')
+            slider.valueChanged.disconnect()
+            slider.setValue(param)
+            slider.valueChanged.connect(self.set_slider)
+
+            label.setText(str(param) + par['unit'])
+            label.setStyleSheet('background-color: white')
         #  временно
         self.zone_of_insensitivity.setEnabled(False)
 
@@ -833,10 +833,10 @@ window.load_file_button.clicked.connect(make_compare_list)
 # выставляю в нули слайдеры и их метки
 for name, par in often_used_params.items():
     slider = getattr(window, name)
-    slider.setMinimum(par['min'] * par['scale'])
-    slider.setMaximum(par['max'] * par['scale'])
-    slider.setSingleStep(par['scale']/10)
-    slider.setPageStep(par['scale']/4)
+    slider.setMinimum(par['min'])
+    slider.setMaximum(par['max'])
+    slider.setSingleStep((par['max'] - par['min'])/10)
+    slider.setPageStep((par['max'] - par['min'])/5)
     slider.setTracking(False)
     slider.setValue(par['min'])
     slider.sliderMoved.connect(window.moved_slider)
