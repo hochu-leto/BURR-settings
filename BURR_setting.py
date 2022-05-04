@@ -945,12 +945,13 @@ window = ExampleApp()  # Создаём объект класса ExampleApp
 
 dir_path = str(pathlib.Path.cwd())
 # vmu_param_file = 'table_for_params.xlsx'
-vmu_param_file = 'table_for_params_forward_wheels.xlsx'
+vmu_param_file = 'wheels&RPM.xlsx'
+# vmu_param_file = 'table_for_params_forward_wheels.xlsx'
 vmu_params_list = fill_vmu_list(pathlib.Path(dir_path, 'Tables', vmu_param_file))
 # заполняю дату с адресами параметров из списка, который задаётся в файле
 req_list = feel_req_list(vmu_params_list)
 
-burr_param_file = 'burr_params.xls'
+burr_param_file = 'старые блоки БУРР( до февраля 2022).xls'
 excel_data_df = pandas.read_excel(pathlib.Path(dir_path, 'Tables', burr_param_file))
 params_list = excel_data_df.to_dict(orient='records')
 bookmark_dict = {}
@@ -1035,7 +1036,7 @@ window.select_file_vmu_params.clicked.connect(make_vmu_params_list)
 
 # убираю вкладку с ожиданием и опросом кву
 window.CAN.removeTab(2)
-window.CAN.removeTab(0)
+# window.CAN.removeTab(0)
 window.load_to_device_button.hide()
 window.show()  # Показываем окно
 app.exec_()  # и запускаем приложение
