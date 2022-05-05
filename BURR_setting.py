@@ -91,13 +91,14 @@ value_type_dict = {'UINT16': 0x2B,
                    'UINT8': 0x2F,
                    'INT8': 0x2F,
                    'DATA': 0x23}
+
+# 'zone_of_insensitivity': {'scale': 0,
+#                           'value': 0,
+#                           'address': 103,
+#                           'min': 0,
+#                           'max': 1,
+#                           'unit': '%'},
 often_used_params = {
-    'zone_of_insensitivity': {'scale': 0,
-                              'value': 0,
-                              'address': 103,
-                              'min': 0,
-                              'max': 1,
-                              'unit': '%'},
     'warning_temperature': {'scale': 0,
                             'value': 0,
                             'address': 104,
@@ -500,7 +501,7 @@ def check_param(address: int, value):
             if value > float(str(par['max']).replace(',', '.')) or value < float(str(par['min']).replace(',', '.')):
                 return 'Value is not in allowed range'
             if str(par['scale']) != 'nan':
-                value = value * 10**int(par['scale'])
+                value = value * 10 ** int(par['scale'])
             value = int(value)
             if par['type'] == 'UINT8':
                 value = ctypes.c_int8(value)
@@ -674,22 +675,21 @@ class ExampleApp(QtWidgets.QMainWindow):
     def moved_slider(self, item):
         slider = QApplication.instance().sender()
         param = slider.objectName()
-        value = item #/ often_used_params[param]['scale']
         label = getattr(self, 'lab_' + param)
-        label.setText(str(value) + often_used_params[param]['unit'])
+        label.setText(str(item) + often_used_params[param]['unit'])
 
     # надо проверить эту функцию
     def set_slider(self, item):
         slider = QApplication.instance().sender()
         param = slider.objectName()
         item = slider.value()
-        value = item * 10**param['scale']   #/ often_used_params[param]['scale']
+        value = item * 10 ** often_used_params[param]['scale']
         address = often_used_params[param]['address']
         label = getattr(self, 'lab_' + param)
-        label.setText(str(value) + often_used_params[param]['unit'])
+        label.setText(str(item) + often_used_params[param]['unit'])
         # надо сделать цикл раза три запихнуть параметр и проверить, если не получилось - предупреждение
         for i in range(marathon.max_iteration):
-            if set_param(address, item):
+            if set_param(address, value):
                 print('Checked changed value - OK')
                 label.setStyleSheet('background-color: green')
                 return True
@@ -703,7 +703,7 @@ class ExampleApp(QtWidgets.QMainWindow):
         window.set_current_wheel.setEnabled(True)
         window.byte_order.setEnabled(True)
         self.lb_soft_version.setText('Версия ПО БУРР ' + str(get_param(42)))
-
+        self.lb_serial_number.setText('Серийный номер ' + str(get_param(69)))
         errors = get_param(0)
         errors_str = ''
         for err_nom, err_str in errors_list.items():
@@ -754,8 +754,6 @@ class ExampleApp(QtWidgets.QMainWindow):
 
             label.setText(str(param) + par['unit'])
             label.setStyleSheet('background-color: white')
-        #  временно
-        self.zone_of_insensitivity.setEnabled(False)
 
     def list_of_params_table(self, item):
         item = bookmark_dict[item.text()]
@@ -835,8 +833,8 @@ for name, par in often_used_params.items():
     slider = getattr(window, name)
     slider.setMinimum(par['min'])
     slider.setMaximum(par['max'])
-    slider.setSingleStep((par['max'] - par['min'])/10)
-    slider.setPageStep((par['max'] - par['min'])/5)
+    slider.setSingleStep((par['max'] - par['min']) / 10)
+    slider.setPageStep((par['max'] - par['min']) / 5)
     slider.setTracking(False)
     slider.setValue(par['min'])
     slider.sliderMoved.connect(window.moved_slider)
