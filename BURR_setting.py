@@ -53,28 +53,21 @@
 Нежелательно копировать область с настройками по внутренним датчикам,
  а также номером устройства, номерами плат и датой выпуска.
   Данный сектор находится в диапазоне адресов с 300 по 349 DEC.
- - СДЕЛАЛ
 """
 
 import inspect
-from pprint import pprint
 
 import ctypes
 import datetime
 import pathlib
 
-from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, pyqtSlot, QRegExp, QSize
-from PyQt5.QtGui import QColor, QRegExpValidator, QIcon
+from PyQt5 import uic
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QColor, QIcon, QFont
+from PyQt5.QtWidgets import QTableWidgetItem, QApplication, QMessageBox, QFileDialog, QMainWindow
 
 from dll_power import CANMarathon
-from PyQt5 import QtWidgets, QtGui, uic
-from PyQt5.QtWidgets import QTableWidgetItem, QApplication, QMessageBox, QFileDialog
 import pandas as pandas
-
-
-class Wheel():
-    req_id = 0
-    ans_id = 0
 
 
 new_burr_param_file = 'new_burr.xls'
@@ -92,12 +85,6 @@ value_type_dict = {'UINT16': 0x2B,
                    'INT8': 0x2F,
                    'DATA': 0x23}
 
-# 'zone_of_insensitivity': {'scale': 0,
-#                           'value': 0,
-#                           'address': 103,
-#                           'min': 0,
-#                           'max': 1,
-#                           'unit': '%'},
 often_used_params = {
     'warning_temperature': {'scale': 0,
                             'value': 0,
@@ -218,12 +205,8 @@ def change_burr_params_file(file):
 def erase_burr_errors():
     # сброс аварии необходимо в параметре по адресу 500 DEC записать значение «5» ;
     # и опросить ошибки снова и обновить окно с ошибками
-    global current_wheel
-
-    err = marathon.can_write(current_wheel, [5, 0, 0, 0, 0xF4, 0x01, 0x2B, 0x10])
-    # if not err:
+    marathon.can_write(current_wheel, [5, 0, 0, 0, 0xF4, 0x01, 0x2B, 0x10])
     errors = get_param(0)
-    print(errors)
     if errors:
         errors_str = ''
         # надо как-то проверить когда нет ошибок и когда нет ответа
@@ -244,7 +227,7 @@ def change_current_wheel(target_wheel: int):
     # защита от повторного входа в функцию
     if target_wheel == has_wheel(current_wheel):
         return
-    # надо проверить на всех рейках может быть любое значение 0,1,2,3,4 , апрол
+    # надо проверить на всех рейках может быть любое значение 0,1,2,3,4
     err = ''
     if target_wheel == 2:
         if has_wheel(Front_Wheel):
@@ -299,14 +282,12 @@ def feel_req_list(p_list: list):
 def show_compare_list(compare_param_dict: dict):
     window.params_table_2.itemChanged.disconnect()
     for i in range(window.params_table_2.rowCount()):
-        param_name = window.params_table_2.item(i, 0).text()
         param_address = window.params_table_2.item(i, 2).text()  # значение адреса в HEX
         param_from_device = window.params_table_2.item(i, window.value_col)
         if param_from_device:
             param_from_device = param_from_device.text()
         else:
             param_from_device = ''
-        # param_from_file = str(compare_param_dict[param_name])
         if param_address in compare_param_dict.keys():
             param_from_file = str(compare_param_dict[param_address])
         else:
@@ -341,10 +322,6 @@ def make_compare_list():
 
             compare_param_dict[hex(int(param['address']))] = value
     show_compare_list(compare_param_dict)
-
-
-def check_connection():
-    pass
 
 
 def show_value(col_value: int, list_of_params: list, table: str):
@@ -387,36 +364,36 @@ def show_empty_params_list(list_of_params: list, table: str):
     row = 0
 
     for par in list_of_params:
-        name_Item = QTableWidgetItem(par['name'])
-        name_Item.setFlags(name_Item.flags() & ~Qt.ItemIsEditable)
-        show_table.setItem(row, 0, name_Item)
+        name_item = QTableWidgetItem(par['name'])
+        name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
+        show_table.setItem(row, 0, name_item)
         if str(par['description']) != 'nan':
             description = str(par['description'])
         else:
             description = ''
-        description_Item = QTableWidgetItem(description)
-        show_table.setItem(row, 1, description_Item)
+        description_item = QTableWidgetItem(description)
+        show_table.setItem(row, 1, description_item)
 
         if par['address']:
             if str(par['address']) != 'nan':
                 adr = hex(round(par['address']))
             else:
                 adr = ''
-            adr_Item = QTableWidgetItem(adr)
-            adr_Item.setFlags(adr_Item.flags() & ~Qt.ItemIsEditable)
-            show_table.setItem(row, 2, adr_Item)
+            adr_item = QTableWidgetItem(adr)
+            adr_item.setFlags(adr_item.flags() & ~Qt.ItemIsEditable)
+            show_table.setItem(row, 2, adr_item)
 
         if str(par['unit']) != 'nan':
             unit = str(par['unit'])
         else:
             unit = ''
-        unit_Item = QTableWidgetItem(unit)
-        unit_Item.setFlags(unit_Item.flags() & ~Qt.ItemIsEditable)
-        show_table.setItem(row, show_table.columnCount() - 1, unit_Item)
+        unit_item = QTableWidgetItem(unit)
+        unit_item.setFlags(unit_item.flags() & ~Qt.ItemIsEditable)
+        show_table.setItem(row, show_table.columnCount() - 1, unit_item)
 
-        value_Item = QTableWidgetItem('')
-        value_Item.setFlags(value_Item.flags() & ~Qt.ItemIsEditable)
-        show_table.setItem(row, window.value_col, value_Item)
+        value_item = QTableWidgetItem('')
+        value_item.setFlags(value_item.flags() & ~Qt.ItemIsEditable)
+        show_table.setItem(row, window.value_col, value_item)
 
         row += 1
     show_table.resizeColumnsToContents()
@@ -450,13 +427,13 @@ def update_connect_button():
             change_burr_params_file(file)
             current_burr_param_file = file
         window.pushButton_2.setText('Обновить')
-        font = QtGui.QFont()
+        font = QFont()
         font.setBold(False)
         window.pushButton_2.setFont(font)
         return firmware_version
 
     window.pushButton_2.setText('Подключиться')
-    font = QtGui.QFont()
+    font = QFont()
     font.setBold(True)
     window.pushButton_2.setFont(font)
     window.groupBox_4.setEnabled(False)
@@ -489,8 +466,6 @@ def get_address(name: str):
 
 
 def check_param(address: int, value):
-    print(value)
-    print(type(value))
     try:
         value = float(value)
     except:
@@ -527,8 +502,8 @@ def set_param(address: int, value: int):
     address = int(address)
     value = int(value)
     if address == 0x23:
-        change_current_wheel(value)
-        return True
+        return change_current_wheel(value)
+
     LSB = address & 0xFF
     MSB = ((address & 0xFF00) >> 8)
     data = [value & 0xFF,
@@ -566,12 +541,14 @@ def get_param(address):
     MSB = ((address & 0xFF00) >> 8)
     # на случай если не удалось с первого раза поймать параметр,
     # делаем ещё request_iteration запросов
+    # тут я проверяю что запрашиваемый адрес существует и выдёргиваю подходящий
     for par in params_list:
         if par['address'] == address:
             no_params = False
             break
     if no_params:
         return False
+
     if par['type'] in value_type_dict.keys():
         value_type = value_type_dict[par['type']]
     else:
@@ -596,7 +573,6 @@ def get_param(address):
                 value = ctypes.c_uint16(value).value
             if str(par['scale']) != 'nan':
                 value = value / 10 ** int((par['scale']))
-
             return value
     QMessageBox.critical(window, "Ошибка ", 'Нет подключения\n' + data, QMessageBox.Ok)
     return False
@@ -641,36 +617,33 @@ def has_wheel(wheel):
         return False
 
 
-class ExampleApp(QtWidgets.QMainWindow):
+def set_front_wheel():
+    change_current_wheel(2)
+
+
+def set_rear_wheel():
+    change_current_wheel(3)
+
+
+def set_byte_order(item):
+    if item:
+        rb_toggled = QApplication.instance().sender()
+        if rb_toggled == window.rb_big_endian:
+            set_param(109, 0)  # охренеть как тупо
+        elif rb_toggled == window.rb_little_endian:
+            set_param(109, 1)
+
+
+class ExampleApp(QMainWindow):
     name_col = 0
     desc_col = 1
     value_col = 3
-    combo_col = 999
-    unit_col = 3
 
     def __init__(self):
         super().__init__()
         # Это нужно для инициализации нашего дизайна
         uic.loadUi('CANAnalyzer_2.ui', self)
         self.setWindowIcon(QIcon('EVO.ico'))
-
-    def set_front_wheel(self, item):
-        print('попытка установки передней оси')
-        change_current_wheel(2)
-
-    def set_rear_wheel(self, item):
-        print('попытка установки задней оси')
-        change_current_wheel(3)
-
-    def set_byte_order(self, item):
-        if item:
-            rb_toggled = QApplication.instance().sender()
-            if rb_toggled == window.rb_big_endian:
-                print('выбор биг-эндиан')
-                set_param(109, 0)  # охренеть как тупо
-            elif rb_toggled == window.rb_little_endian:
-                print('выбор литл-эндиан')
-                set_param(109, 1)
 
     def moved_slider(self, item):
         slider = QApplication.instance().sender()
@@ -725,8 +698,8 @@ class ExampleApp(QtWidgets.QMainWindow):
         else:
             self.factory_settings_rb.setChecked(True)
 
-        self.set_front_wheel_rb.toggled.connect(self.set_front_wheel)
-        self.set_rear_wheel_rb.toggled.connect(self.set_rear_wheel)
+        self.set_front_wheel_rb.toggled.connect(set_front_wheel)
+        self.set_rear_wheel_rb.toggled.connect(set_rear_wheel)
 
         self.rb_big_endian.toggled.disconnect()
         self.rb_little_endian.toggled.disconnect()
@@ -735,8 +708,8 @@ class ExampleApp(QtWidgets.QMainWindow):
             self.rb_big_endian.setChecked(True)
         elif byte_order == 1:
             self.rb_little_endian.setChecked(True)
-        self.rb_big_endian.toggled.connect(self.set_byte_order)
-        self.rb_little_endian.toggled.connect(self.set_byte_order)
+        self.rb_big_endian.toggled.connect(set_byte_order)
+        self.rb_little_endian.toggled.connect(set_byte_order)
 
         for name, par in often_used_params.items():
             par['value'] = get_param(int(par['address']))
@@ -760,7 +733,6 @@ class ExampleApp(QtWidgets.QMainWindow):
         self.params_table.itemChanged.disconnect()
         show_empty_params_list(item, 'params_table')
         self.params_table.itemChanged.connect(self.save_item)
-
         show_value(self.value_col, item, 'params_table')
 
     def save_item(self, item):
@@ -777,7 +749,6 @@ class ExampleApp(QtWidgets.QMainWindow):
                         table_param.item(item.row(), self.value_col).setSelected(False)
 
                         if set_param(address_param, value):
-                            print('Checked changed value - OK')
                             table_param.item(item.row(), self.value_col).setBackground(QColor('green'))
                             return True
                         else:
@@ -785,7 +756,6 @@ class ExampleApp(QtWidgets.QMainWindow):
                             table_param.itemChanged.disconnect()
                             table_param.item(item.row(), self.value_col).setText(str(get_param(address_param)))
                             table_param.itemChanged.connect(window.save_item)
-
                             return False
                     else:
                         err = "Param isn't in available range" + value
@@ -799,13 +769,12 @@ class ExampleApp(QtWidgets.QMainWindow):
                         return True
                 err = "Can't find this value - в списке параметров этот параметр не найден"
             else:
-                err = "It's impossible!!! - действительно херня какая-то , не та колонка таблицы"
+                err = "It's impossible!!! - не та колонка таблицы"
         else:
             err = 'Value is empty'
         QMessageBox.critical(window, "Ошибка ", err, QMessageBox.Ok)
         table_param.item(item.row(), item.column()).setSelected(False)
         table_param.item(item.row(), item.column()).setBackground(QColor('red'))
-
         return False
 
 
@@ -826,28 +795,28 @@ window.pushButton.clicked.connect(save_all_params)
 window.list_bookmark.itemClicked.connect(window.list_of_params_table)
 window.params_table.resizeColumnsToContents()
 window.load_file_button.clicked.connect(make_compare_list)
-
 #  часто используемые
 # выставляю в нули слайдеры и их метки
 for name, par in often_used_params.items():
     slider = getattr(window, name)
     slider.setMinimum(par['min'])
     slider.setMaximum(par['max'])
-    slider.setSingleStep((par['max'] - par['min']) / 10)
-    slider.setPageStep((par['max'] - par['min']) / 5)
+    slider.setSingleStep(int((par['max'] - par['min']) / 10))
+    slider.setPageStep(int((par['max'] - par['min']) / 5))
     slider.setTracking(False)
     slider.setValue(par['min'])
     slider.sliderMoved.connect(window.moved_slider)
     slider.valueChanged.connect(window.set_slider)
-
     label = getattr(window, 'lab_' + name)
     label.setText(str(par['min']) + par['unit'])
-# изменение текущего блока на противоположный - работает паршиво - нет заводского режима
-window.set_front_wheel_rb.toggled.connect(window.set_front_wheel)
-window.set_rear_wheel_rb.toggled.connect(window.set_rear_wheel)
-# изменение порядка следования байт - работает тоже паршиво
-window.rb_big_endian.toggled.connect(window.set_byte_order)
-window.rb_little_endian.toggled.connect(window.set_byte_order)
+
+# изменение текущего блока на противоположный
+window.set_front_wheel_rb.toggled.connect(set_front_wheel)
+window.set_rear_wheel_rb.toggled.connect(set_rear_wheel)
+# изменение порядка следования байт
+window.rb_big_endian.toggled.connect(set_byte_order)
+window.rb_little_endian.toggled.connect(set_byte_order)
+# удаляем ошибки
 window.erase_err_btn.clicked.connect(erase_burr_errors)
 
 window.show()  # Показываем окно
