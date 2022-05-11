@@ -345,7 +345,6 @@ class ExampleApp(QMainWindow):
         self.vmu_req_thread.new_vmu_params.connect(self.add_new_vmu_params)
         # подключим сигнал старта потока к методу run у объекта, который должен выполнять код в другом потоке
         self.thread_to_record.started.connect(self.vmu_req_thread.run)
-        self.hidden_tab = self.Wait_for_read
 
     @pyqtSlot(list)
     def add_new_vmu_params(self, list_of_params: list):
@@ -390,8 +389,6 @@ req_list = feel_req_list(vmu_params_list)
 
 marathon = CANMarathon()
 show_empty_params_list(vmu_params_list, 'vmu_param_table')
-# изменение параметра рейки ведёт к сохранению
-window.params_table.itemChanged.connect(window.save_item)
 # главные кнопки для КВУ
 window.connect_vmu_btn.clicked.connect(connect_vmu)
 window.start_record.clicked.connect(start_btn_pressed)
