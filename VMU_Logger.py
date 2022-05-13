@@ -24,6 +24,7 @@
 import ctypes
 import datetime
 import pathlib
+from pprint import pprint
 
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, pyqtSlot, QRegExp
 from PyQt5.QtGui import QColor, QRegExpValidator, QFont, QIcon
@@ -34,6 +35,34 @@ import pandas as pandas
 
 rtcon_vmu = 0x1850460E
 vmu_rtcon = 0x594
+
+
+class VMU:
+    def __init__(self, lst: tuple):
+        self.req_id = lst[0]
+        self.ans_id = lst[1]
+        self.param_list = lst[2]
+        self.req_list = self.feel_req_list()
+        pprint(self.req_list)
+
+    def feel_req_list(self):
+        r_list = []
+        for par in self.param_list:
+            address = par['address']
+            MSB = ((address & 0xFF0000) >> 16)
+            LSB = ((address & 0xFF00) >> 8)
+            sub_index = address & 0xFF
+            # работает только для кву Цикл+
+            data = [0x40, LSB, MSB, sub_index, 0, 0, 0, 0]
+            r_list.append(data)
+        return r_list
+
+    def check_connection(self):
+        # работает только для кву цикл +
+        param_list = [[0x40, 0x18, 0x10, 0x02, 0x00, 0x00, 0x00, 0x00]]
+        # Проверяю, есть ли подключение к кву
+        check = marathon.can_request_many(self.req_id, self.ans_id, param_list)
+        return check
 
 
 def make_vmu_params_list():
@@ -58,16 +87,31 @@ def make_vmu_params_list():
                                                     'Например "0x520B09"',
                                  QMessageBox.Ok)
         else:
-            vmu_params_list = fill_vmu_list(fname)
-            show_empty_params_list(vmu_params_list, 'vmu_param_table')
+            vmu = VMU(fill_vmu_list(fname))
+            show_empty_params_list(vmu.param_list, 'vmu_param_table')
     else:
         QMessageBox.critical(window, "Ошибка ", 'В выбранном файле не хватает полей' + '\n' + ''.join(result_list),
                              QMessageBox.Ok)
 
 
 def fill_vmu_list(file_name):
-    excel_data_df = pandas.read_excel(file_name)
-    vmu_params_list = excel_data_df.to_dict(orient='records')
+    need_fields = {'name', 'address', 'unit'}
+
+    file = pandas.ExcelFile(file_name)
+    sheet_name = file.sheet_names[0]
+    if 'x' not in sheet_name and '-' not in sheet_name:
+        QMessageBox.critical(None, "Ошибка ", 'Лист с параметрами назван неверно\n должны быть ID запроса-ответа '
+                                              'нужного блока', QMessageBox.Ok)
+        return
+    id_list = sheet_name.split('x')
+    req_id = int(id_list[1][:-2], 16)
+    ans_id = int(id_list[2], 16)
+    sheet = file.parse(sheet_name=sheet_name)
+    headers = list(sheet.columns.values)
+    if not set(need_fields).issubset(headers):  # если в заголовках есть все нужные поля
+        QMessageBox.critical(None, "Ошибка ", 'На листе не хватает столбцов\n name, address, unit', QMessageBox.Ok)
+        return
+    vmu_params_list = sheet.to_dict(orient='records')
     exit_list = []
     for par in vmu_params_list:
         if str(par['name']) != 'nan':
@@ -81,7 +125,7 @@ def fill_vmu_list(file_name):
                 if str(par['scaleB']) == 'nan':
                     par['scaleB'] = 0
                 exit_list.append(par)
-    return exit_list
+    return req_id, ans_id, exit_list
 
 
 def const_req_vmu_params():
@@ -96,7 +140,7 @@ def const_req_vmu_params():
 def adding_to_csv_file(name_or_value: str):
     data = []
     data_string = []
-    for par in vmu_params_list:
+    for par in vmu.param_list:
         data_string.append(par[name_or_value])
     dt = datetime.datetime.now()
     dt = dt.strftime("%H:%M:%S.%f")
@@ -146,22 +190,8 @@ def start_btn_pressed():
                                 QMessageBox.Ok)
 
 
-def feel_req_list(p_list: list):
-    req_list = []
-    for par in p_list:
-        address = par['address']
-        MSB = ((address & 0xFF0000) >> 16)
-        LSB = ((address & 0xFF00) >> 8)
-        sub_index = address & 0xFF
-        data = [0x40, LSB, MSB, sub_index, 0, 0, 0, 0]
-        req_list.append(data)
-    return req_list
-
-
 def connect_vmu():
-    param_list = [[0x40, 0x18, 0x10, 0x02, 0x00, 0x00, 0x00, 0x00]]
-    # Проверяю, есть ли подключение к кву
-    check = marathon.can_request_many(rtcon_vmu, vmu_rtcon, param_list)
+    check = vmu.check_connection()
     if isinstance(check, list):
         check = check[0]
     if isinstance(check, str):
@@ -172,7 +202,7 @@ def connect_vmu():
         return False
 
     # запрашиваю список полученных ответов
-    ans_list = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
+    ans_list = marathon.can_request_many(vmu.req_id, vmu.ans_id, vmu.req_list)
     fill_vmu_params_values(ans_list)
     # отображаю сообщения из списка
     window.show_new_vmu_params()
@@ -185,7 +215,7 @@ def connect_vmu():
 
 def fill_vmu_params_values(ans_list: list):
     i = 0
-    for par in vmu_params_list:
+    for par in vmu.param_list:
         message = ans_list[i]
         if not isinstance(message, str):
             value = (message[7] << 24) + \
@@ -207,39 +237,6 @@ def fill_vmu_params_values(ans_list: list):
             par['value'] = float('{:.2f}'.format(par['value']))
         i += 1
     print('Новые параметры КВУ записаны ')
-
-
-def show_value(col_value: int, list_of_params: list, table: str):
-    if update_connect_button():  # проверка что есть связь с блоком
-        show_table = getattr(window, table)
-
-        row = 0
-
-        for par in list_of_params:
-            if (not par['value']) or (str(par['value']) == 'nan'):
-                value = get_param(int(par['address']))
-                par['value'] = value
-            else:
-                value = par['value']
-
-            value_Item = QTableWidgetItem(str(value))
-
-            if str(par['editable']) != 'nan':
-                value_Item.setFlags(value_Item.flags() | Qt.ItemIsEditable)
-                value_Item.setBackground(QColor('#D7FBFF'))
-            else:
-                value_Item.setFlags(value_Item.flags() & ~Qt.ItemIsEditable)
-
-            if str(par['strings']) != 'nan':
-                value_Item.setStatusTip(str(par['strings']))
-                value_Item.setToolTip(str(par['strings']))
-            show_table.itemChanged.disconnect()
-            show_table.setItem(row, col_value, value_Item)
-            show_table.itemChanged.connect(window.save_item)
-
-            row += 1
-        show_table.resizeColumnsToContents()
-    marathon.close_marathon_canal()
 
 
 def show_empty_params_list(list_of_params: list, table: str):
@@ -297,7 +294,7 @@ class VMUSaveToFileThread(QObject):
                 adding_to_csv_file('value')
             #  Получаю новые параметры от КВУ
             ans_list = []
-            answer = marathon.can_request_many(rtcon_vmu, vmu_rtcon, req_list)
+            answer = marathon.can_request_many(vmu.req_id, vmu.ans_id, vmu.req_list)
             # Если происходит разрыв связи в блоком во время чтения
             #  И прилетает строка ошибки, то надо запихнуть её в список
             if isinstance(answer, str):
@@ -369,7 +366,7 @@ class ExampleApp(QMainWindow):
 
     def show_new_vmu_params(self):
         row = 0
-        for par in vmu_params_list:
+        for par in vmu.param_list:
             value_Item = QTableWidgetItem(str(par['value']))
             value_Item.setFlags(value_Item.flags() & ~Qt.ItemIsEditable)
             self.vmu_param_table.setItem(row, window.value_col, value_Item)
@@ -383,12 +380,10 @@ dir_path = str(pathlib.Path.cwd())
 # vmu_param_file = 'table_for_params.xlsx'
 vmu_param_file = 'wheels&RPM.xlsx'
 # vmu_param_file = 'table_for_params_forward_wheels.xlsx'
-vmu_params_list = fill_vmu_list(pathlib.Path(dir_path, 'Tables', vmu_param_file))
-# заполняю дату с адресами параметров из списка, который задаётся в файле
-req_list = feel_req_list(vmu_params_list)
+vmu = VMU(fill_vmu_list(pathlib.Path(dir_path, 'Tables', vmu_param_file)))
 
 marathon = CANMarathon()
-show_empty_params_list(vmu_params_list, 'vmu_param_table')
+show_empty_params_list(vmu.param_list, 'vmu_param_table')
 # главные кнопки для КВУ
 window.connect_vmu_btn.clicked.connect(connect_vmu)
 window.start_record.clicked.connect(start_btn_pressed)
