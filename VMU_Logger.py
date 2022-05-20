@@ -1,40 +1,28 @@
 """
-Цель этой ветки - создать  программу для просмотра/записи параметров из кву цикл + и TTC
-- никакого управления
-- никаких плюшек типа выбора параметров
-- выбор только файла с набором параметров и их опрос
-
-- всё, что относится к БУРР-30 - СНОСИМ НАХРЕН!!!!!!
-- для него есть свой проект на гитлабе эвокарго
---------------------------------------------критично------------------------------
+Цель этой ветки - создать  программу для просмотра параметров из кву цикл + и ПСТЭД цикл +
+--------------------------------------------критично------------------------
+- проверить на ПСТЭДе цикл+
 --------------------------------------------хотелки-------------------------
-- сделать поиск параметра по описанию и названию
-- задел под парсинг файла с настройками от рткона
--- индекс и саб_индекс вместо адресов кву
---- исправить проверку на адрес, и если есть индекс и саб_индекс, брать их за основу и запихивать в адрес
--- скале_валуе - если есть, и не ноль, то запихиваем в скале))) - если это когда-то понадобится
 - ограничить число записываемых параметров не более 30 штук, если в файле больше - брать только первые 50,
  либо предлагать выбрать другой файл
+ - сделать просмотр также инвертора МЭИ
+ - сделать просмотр также КВУ ТТС
 ---------------------------------------------непонятки----------------------
 - не подключается когда подключили марафон или закрыли рткон или канвайс - тут вообще
 какая-то непонятная фигня, есть подозрения, что это особенность работы марафона - без перезагрузки он периодически
 отваливается . Выход - переход на квайзер и кан-хакер
 --------------------------------------------исправил--------------------------------
+- задел под парсинг файла с настройками от рткона - этим занимается отдельная прога
 """
 import ctypes
 import datetime
 import pathlib
-from pprint import pprint
-
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, pyqtSlot, QRegExp
-from PyQt5.QtGui import QColor, QRegExpValidator, QFont, QIcon
+from PyQt5.QtGui import QRegExpValidator, QIcon
 from dll_power import CANMarathon
 from PyQt5 import uic
 from PyQt5.QtWidgets import QTableWidgetItem, QApplication, QMessageBox, QFileDialog, QMainWindow
 import pandas as pandas
-
-rtcon_vmu = 0x1850460E
-vmu_rtcon = 0x594
 
 
 class VMU:
@@ -60,11 +48,13 @@ class VMU:
         # работает только для кву цикл +
         param_list = [[0x40, 0x18, 0x10, 0x02, 0x00, 0x00, 0x00, 0x00]]
         # Проверяю, есть ли подключение к кву
+        # Так-то один параметр запрашивается, можно без реквест мэни, но это работает, осталю
         check = marathon.can_request_many(self.req_id, self.ans_id, param_list)
         return check
 
 
 def make_vmu_params_list():
+    global vmu
     fname = QFileDialog.getOpenFileName(window, 'Файл с нужными параметрами КВУ', dir_path + '//Tables',
                                         "Excel tables (*.xlsx)")[0]
     if fname and ('.xls' in fname):
@@ -80,13 +70,14 @@ def make_vmu_params_list():
 
     if not result_list:
         if len(str(par_list[0]['address'])) < 6:
-
             QMessageBox.critical(window, "Ошибка ", 'Поле "address" должно быть\n'
                                                     '2 байта индекса + 1 байт сабиндекса\n'
                                                     'Например "0x520B09"',
                                  QMessageBox.Ok)
         else:
-            vmu = VMU(fill_vmu_list(fname))
+            new_vmu = fill_vmu_list(fname)
+            if new_vmu:
+                vmu = VMU(new_vmu)
             show_empty_params_list(vmu.param_list, 'vmu_param_table')
     else:
         QMessageBox.critical(window, "Ошибка ", 'В выбранном файле не хватает полей' + '\n' + ''.join(result_list),
@@ -95,13 +86,12 @@ def make_vmu_params_list():
 
 def fill_vmu_list(file_name):
     need_fields = {'name', 'address', 'unit'}
-
     file = pandas.ExcelFile(file_name)
     sheet_name = file.sheet_names[0]
     if 'x' not in sheet_name and '-' not in sheet_name:
         QMessageBox.critical(None, "Ошибка ", 'Лист с параметрами назван неверно\n должны быть ID запроса-ответа '
                                               'нужного блока', QMessageBox.Ok)
-        return
+        return False
     id_list = sheet_name.split('x')
     req_id = int(id_list[1][:-2], 16)
     ans_id = int(id_list[2], 16)
@@ -109,7 +99,7 @@ def fill_vmu_list(file_name):
     headers = list(sheet.columns.values)
     if not set(need_fields).issubset(headers):  # если в заголовках есть все нужные поля
         QMessageBox.critical(None, "Ошибка ", 'На листе не хватает столбцов\n name, address, unit', QMessageBox.Ok)
-        return
+        return False
     vmu_params_list = sheet.to_dict(orient='records')
     exit_list = []
     for par in vmu_params_list:
@@ -220,23 +210,16 @@ def fill_vmu_params_values(ans_list: list):
             value = (message[7] << 24) + \
                     (message[6] << 16) + \
                     (message[5] << 8) + message[4]
-            #  вывод на печать полученных ответов
-            # print(par['name'])
-            # for j in message:
-            #     print(hex(j), end=' ')
+            # Здесь всё очень печально - нет никакого понимания какой тип параметра, но это уже в мониторе исправлено
             # если множителя нет, то берём знаковое int16
             if par['scale'] == 1:
                 par['value'] = ctypes.c_int16(value).value
             # возможно, здесь тоже нужно вытаскивать знаковое int, ага, int32
             else:
                 value = ctypes.c_int32(value).value
-                # print(' = ' + str(value), end=' ')
                 par['value'] = (value / par['scale'])
-                # print(' = ' + str(par['value']))
             par['value'] = float('{:.2f}'.format(par['value']))
-        print(par['name'] + ' = ' + str(par['value']))
         i += 1
-    print('Новые параметры КВУ записаны ')
 
 
 def show_empty_params_list(list_of_params: list, table: str):
@@ -246,36 +229,36 @@ def show_empty_params_list(list_of_params: list, table: str):
     row = 0
 
     for par in list_of_params:
-        name_Item = QTableWidgetItem(par['name'])
-        name_Item.setFlags(name_Item.flags() & ~Qt.ItemIsEditable)
-        show_table.setItem(row, 0, name_Item)
+        name_item = QTableWidgetItem(par['name'])
+        name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
+        show_table.setItem(row, 0, name_item)
         if str(par['description']) != 'nan':
             description = str(par['description'])
         else:
             description = ''
-        description_Item = QTableWidgetItem(description)
-        show_table.setItem(row, 1, description_Item)
+        description_item = QTableWidgetItem(description)
+        show_table.setItem(row, 1, description_item)
 
         if par['address']:
             if str(par['address']) != 'nan':
                 adr = hex(round(par['address']))
             else:
                 adr = ''
-            adr_Item = QTableWidgetItem(adr)
-            adr_Item.setFlags(adr_Item.flags() & ~Qt.ItemIsEditable)
-            show_table.setItem(row, 2, adr_Item)
+            adr_item = QTableWidgetItem(adr)
+            adr_item.setFlags(adr_item.flags() & ~Qt.ItemIsEditable)
+            show_table.setItem(row, 2, adr_item)
 
         if str(par['unit']) != 'nan':
             unit = str(par['unit'])
         else:
             unit = ''
-        unit_Item = QTableWidgetItem(unit)
-        unit_Item.setFlags(unit_Item.flags() & ~Qt.ItemIsEditable)
-        show_table.setItem(row, show_table.columnCount() - 1, unit_Item)
+        unit_item = QTableWidgetItem(unit)
+        unit_item.setFlags(unit_item.flags() & ~Qt.ItemIsEditable)
+        show_table.setItem(row, show_table.columnCount() - 1, unit_item)
 
-        value_Item = QTableWidgetItem('')
-        value_Item.setFlags(value_Item.flags() & ~Qt.ItemIsEditable)
-        show_table.setItem(row, window.value_col, value_Item)
+        value_item = QTableWidgetItem('')
+        value_item.setFlags(value_item.flags() & ~Qt.ItemIsEditable)
+        show_table.setItem(row, window.value_col, value_item)
 
         row += 1
     show_table.resizeColumnsToContents()
@@ -315,6 +298,7 @@ class VMUSaveToFileThread(QObject):
                     response_time = 60000
             else:
                 response_time = 1000
+            # Это, конечно, жесть
             QThread.msleep(response_time)
 
 
@@ -371,13 +355,9 @@ class ExampleApp(QMainWindow):
 
 app = QApplication([])
 window = ExampleApp()  # Создаём объект класса ExampleApp
-
 dir_path = str(pathlib.Path.cwd())
 vmu_param_file = 'table_for_params1.xlsx'
-# vmu_param_file = 'wheels&RPM.xlsx'
-# vmu_param_file = 'table_for_params_forward_wheels.xlsx'
 vmu = VMU(fill_vmu_list(pathlib.Path(dir_path, 'Tables', vmu_param_file)))
-
 marathon = CANMarathon()
 show_empty_params_list(vmu.param_list, 'vmu_param_table')
 # главные кнопки для КВУ
