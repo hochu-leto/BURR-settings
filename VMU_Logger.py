@@ -43,7 +43,6 @@ class VMU:
         self.ans_id = lst[1]
         self.param_list = lst[2]
         self.req_list = self.feel_req_list()
-        pprint(self.req_list)
 
     def feel_req_list(self):
         r_list = []
@@ -66,7 +65,7 @@ class VMU:
 
 
 def make_vmu_params_list():
-    fname = QFileDialog.getOpenFileName(window, 'Файл с нужными параметрами КВУ', dir_path,
+    fname = QFileDialog.getOpenFileName(window, 'Файл с нужными параметрами КВУ', dir_path + '//Tables',
                                         "Excel tables (*.xlsx)")[0]
     if fname and ('.xls' in fname):
         excel_data = pandas.read_excel(fname)
@@ -120,7 +119,7 @@ def fill_vmu_list(file_name):
                     if '0x' in par['address']:
                         par['address'] = par['address'].rsplit('x')[1]
                     par['address'] = int(par['address'], 16)
-                if str(par['scale']) == 'nan':
+                if str(par['scale']) == 'nan' or par['scale'] == 0:
                     par['scale'] = 1
                 if str(par['scaleB']) == 'nan':
                     par['scaleB'] = 0
@@ -235,6 +234,7 @@ def fill_vmu_params_values(ans_list: list):
                 par['value'] = (value / par['scale'])
                 # print(' = ' + str(par['value']))
             par['value'] = float('{:.2f}'.format(par['value']))
+        print(par['name'] + ' = ' + str(par['value']))
         i += 1
     print('Новые параметры КВУ записаны ')
 
@@ -319,11 +319,7 @@ class VMUSaveToFileThread(QObject):
 
 
 class ExampleApp(QMainWindow):
-    name_col = 0
-    desc_col = 1
     value_col = 3
-    combo_col = 999
-    unit_col = 3
     record_vmu_params = False
 
     def __init__(self):
@@ -377,8 +373,8 @@ app = QApplication([])
 window = ExampleApp()  # Создаём объект класса ExampleApp
 
 dir_path = str(pathlib.Path.cwd())
-# vmu_param_file = 'table_for_params.xlsx'
-vmu_param_file = 'wheels&RPM.xlsx'
+vmu_param_file = 'table_for_params1.xlsx'
+# vmu_param_file = 'wheels&RPM.xlsx'
 # vmu_param_file = 'table_for_params_forward_wheels.xlsx'
 vmu = VMU(fill_vmu_list(pathlib.Path(dir_path, 'Tables', vmu_param_file)))
 
