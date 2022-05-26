@@ -17,6 +17,8 @@
 import ctypes
 import datetime
 import pathlib
+import struct
+
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, pyqtSlot, QRegExp
 from PyQt5.QtGui import QRegExpValidator, QIcon
 from dll_power import CANMarathon
@@ -210,14 +212,22 @@ def fill_vmu_params_values(ans_list: list):
             value = (message[7] << 24) + \
                     (message[6] << 16) + \
                     (message[5] << 8) + message[4]
-            # Здесь всё очень печально - нет никакого понимания какой тип параметра, но это уже в мониторе исправлено
-            # если множителя нет, то берём знаковое int16
-            if par['scale'] == 1:
+            if par['type'] == 'UNSIGNED8':
+                par['value'] = ctypes.c_uint8(value).value
+            elif par['type'] == 'UNSIGNED16':
+                par['value'] = ctypes.c_uint16(value).value
+            elif par['type'] == 'UNSIGNED32':
+                par['value'] = ctypes.c_uint32(value).value
+            elif par['type'] == 'SIGNED8':
+                par['value'] = ctypes.c_int8(value).value
+            elif par['type'] == 'SIGNED16':
                 par['value'] = ctypes.c_int16(value).value
-            # возможно, здесь тоже нужно вытаскивать знаковое int, ага, int32
-            else:
-                value = ctypes.c_int32(value).value
-                par['value'] = (value / par['scale'])
+            elif par['type'] == 'SIGNED32':
+                par['value'] = ctypes.c_int32(value).value
+            elif par['type'] == 'FLOAT':
+                par['value'] = struct.unpack('<f', bytearray(message[-4:]))[0]
+
+            par['value'] = (par['value'] / par['scale'] - par['scaleB'])
             par['value'] = float('{:.2f}'.format(par['value']))
         i += 1
 
@@ -356,7 +366,7 @@ class ExampleApp(QMainWindow):
 app = QApplication([])
 window = ExampleApp()  # Создаём объект класса ExampleApp
 dir_path = str(pathlib.Path.cwd())
-vmu_param_file = 'table_for_params1.xlsx'
+vmu_param_file = 'table_for_params.xlsx'
 vmu = VMU(fill_vmu_list(pathlib.Path(dir_path, 'Tables', vmu_param_file)))
 marathon = CANMarathon()
 show_empty_params_list(vmu.param_list, 'vmu_param_table')
