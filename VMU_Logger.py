@@ -55,6 +55,22 @@ class VMU:
         return check
 
 
+def end_connection(err: str):
+    window.connect_vmu_btn.setText('Подключиться')
+    window.connect_vmu_btn.setEnabled(True)
+    window.start_record.setText('Запись')
+    window.start_record.setEnabled(False)
+    window.constantly_req_vmu_params.setChecked(False)
+    window.constantly_req_vmu_params.setEnabled(False)
+    window.record_vmu_params = False
+    window.thread_to_record.running = False
+    window.thread_to_record.terminate()
+    if err:
+        QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + err, QMessageBox.Ok)
+    marathon.close_marathon_canal()
+    return False
+
+
 def make_vmu_params_list():
     global vmu
     fname = QFileDialog.getOpenFileName(window, 'Файл с нужными параметрами КВУ', dir_path + '//Tables',
@@ -116,6 +132,7 @@ def fill_vmu_list(file_name):
                 if str(par['scaleB']) == 'nan':
                     par['scaleB'] = 0
                 exit_list.append(par)
+    end_connection('')
     return req_id, ans_id, exit_list
 
 
@@ -186,10 +203,7 @@ def connect_vmu():
     if isinstance(check, list):
         check = check[0]
     if isinstance(check, str):
-        QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + check, QMessageBox.Ok)
-        window.connect_vmu_btn.setText('Подключиться')
-        window.constantly_req_vmu_params.setEnabled(False)
-        window.start_record.setEnabled(False)
+        end_connection(check)
         return False
 
     # запрашиваю список полученных ответов
@@ -226,9 +240,12 @@ def fill_vmu_params_values(ans_list: list):
                 par['value'] = ctypes.c_int32(value).value
             elif par['type'] == 'FLOAT':
                 par['value'] = struct.unpack('<f', bytearray(message[-4:]))[0]
-
+            print(par['name'] + ' clean = ' + str(par['value']))
             par['value'] = (par['value'] / par['scale'] - par['scaleB'])
+            print(par['name'] + ' scale = ' + str(par['value']))
             par['value'] = float('{:.2f}'.format(par['value']))
+            # par['value'] = '{:g}'.format(par['value'])
+            print(par['name'] + ' format = ' + str(par['value']))
         i += 1
 
 
@@ -338,18 +355,8 @@ class ExampleApp(QMainWindow):
         # если в списке строка - нахер такой список, похоже, нас отсоединили
         # но бывает, что параметр не прилетел в первый пункт списка, тогда нужно проверить,
         # что хотя бы два пункта списка - строки( или придумать более изощерённую проверку)
-        if len(list_of_params) == 1:  # or (isinstance(list_of_params[0], str) and isinstance(list_of_params[1],
-            # str)):
-            window.connect_vmu_btn.setText('Подключиться')
-            window.connect_vmu_btn.setEnabled(True)
-            window.start_record.setText('Запись')
-            window.start_record.setEnabled(False)
-            window.constantly_req_vmu_params.setChecked(False)
-            window.constantly_req_vmu_params.setEnabled(False)
-            window.record_vmu_params = False
-            window.thread_to_record.running = False
-            window.thread_to_record.terminate()
-            QMessageBox.critical(window, "Ошибка ", 'Нет подключения' + '\n' + list_of_params[0], QMessageBox.Ok)
+        if len(list_of_params) == 1:
+            end_connection(list_of_params[0])
         else:
             fill_vmu_params_values(list_of_params)
             self.show_new_vmu_params()
@@ -377,7 +384,7 @@ window.constantly_req_vmu_params.toggled.connect(const_req_vmu_params)
 # в окошке с задержкой опроса могут быть только цифры
 reg_ex_2 = QRegExp("[0-9]{1,5}")
 window.response_time_edit.setValidator(QRegExpValidator(reg_ex_2))
-window.response_time_edit.setText('1000')
+window.response_time_edit.setText('200')
 window.select_file_vmu_params.clicked.connect(make_vmu_params_list)
 
 window.show()  # Показываем окно
