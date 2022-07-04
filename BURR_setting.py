@@ -354,7 +354,7 @@ def show_value(col_value: int, list_of_params: list, table: str):
 
             row += 1
         show_table.resizeColumnsToContents()
-    marathon.close_marathon_canal()
+    marathon.close_canal_can()
 
 
 def show_empty_params_list(list_of_params: list, table: str):
