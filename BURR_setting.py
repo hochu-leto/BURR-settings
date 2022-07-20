@@ -305,7 +305,7 @@ def make_compare_list():
     global compare_param_dict
     fname = QFileDialog.getOpenFileName(window,
                                         'Файл с настройками БУРР-30',
-                                        dir_path + '\\Burr settings',
+                                        dir_path + '\\Burr_settings',
                                         "Excel tables (*.xlsx)")[0]
     if fname and ('.xls' in fname):
         excel_data = pandas.read_excel(fname)
@@ -595,11 +595,11 @@ def save_all_params():
             wheel = 'rear_'
         file_name = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         file_name = 'burr30_' + wheel + file_name + '.xlsx'
-        full_file_name = pathlib.Path(dir_path, 'Burr settings', file_name)
+        full_file_name = pathlib.Path(dir_path, 'Burr_settings', file_name)
         pandas.DataFrame(params_list).to_excel(full_file_name, index=False)
         print(' Save file success')
         QMessageBox.information(window, "Успешный Успех", 'Файл настроек подключенного блока\n' +
-                                file_name + '\nищи в папке "Burr settings"',
+                                file_name + '\nищи в папке "Burr_settings"',
                                 QMessageBox.Ok)
         return True
     print('Fail save file')

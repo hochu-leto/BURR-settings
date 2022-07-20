@@ -122,15 +122,15 @@ class CANMarathon:
             ('data', ctypes.c_uint8 * 8)
         ]
 
-    def __init__(self):
-        self.lib = cdll.LoadLibrary(r"Marathon Driver and dll\chai.dll")
+    def __init__(self, channel=0, bitrate=BCI_125K_bt0):
+        self.lib = cdll.LoadLibrary(str(pathlib.Path(pathlib.Path.cwd(), 'Marathon_Driver_and_dll', 'chai.dll')))
         self.lib.CiInit()
-        self.can_canal_number = 0  # по умолчанию нулевой канал
-        self.BCI_bt0 = self.BCI_125K_bt0  # и скорость 125
+        self.can_canal_number = channel  # по умолчанию нулевой канал
+        self.BCI_bt0 = bitrate  # и скорость 125
         self.max_iteration = 10
         self.is_canal_open = False
         self.log_file = pathlib.Path(pathlib.Path.cwd(),
-                                     'Marathon logs',
+                                     'Marathon_logs',
                                      'log_marathon_' +
                                      datetime.now().strftime("%Y-%m-%d_%H-%M") +
                                      '.txt')
@@ -181,6 +181,9 @@ class CANMarathon:
             return str(result)
 
     def can_write(self, can_id: int, message: list):
+        if not isinstance(message, list):
+            return 'Неправильные данные для передачи. Нужен список'
+
         if not self.is_canal_open:
             err = self.canal_open()
             if err:
