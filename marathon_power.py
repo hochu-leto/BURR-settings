@@ -98,6 +98,11 @@ class CANMarathon:
     BCI_250K_bt0 = 0x01
     BCI_500K_bt0 = 0x00
     BCI_ALL_bt1 = 0x1c
+    can_bitrate = {
+        125:BCI_125K_bt0,
+        250:BCI_250K_bt0,
+        500:BCI_500K_bt0
+    }
 
     class Buffer(Structure):
         _fields_ = [
@@ -122,11 +127,15 @@ class CANMarathon:
             ('data', ctypes.c_uint8 * 8)
         ]
 
-    def __init__(self, channel=0, bitrate=BCI_125K_bt0):
+    def __init__(self, channel=0, bit=125):
         self.lib = cdll.LoadLibrary(str(pathlib.Path(pathlib.Path.cwd(), 'Marathon_Driver_and_dll', 'chai.dll')))
         self.lib.CiInit()
         self.can_canal_number = channel  # по умолчанию нулевой канал
-        self.BCI_bt0 = bitrate  # и скорость 125
+        if bit in self.can_bitrate.keys():
+            self.BCI_bt0 = self.can_bitrate[bit]
+        else:
+            self.BCI_bt0 = self.BCI_125K_bt0  # и скорость 125
+
         self.max_iteration = 10
         self.is_canal_open = False
         self.log_file = pathlib.Path(pathlib.Path.cwd(),
@@ -179,6 +188,74 @@ class CANMarathon:
             return error_codes[result]
         else:
             return str(result)
+
+    # возвращает массив int если удалось считать и str если ошибка
+    def can_read_all(self):
+        # если канал закрыт, его нда открыть
+        err = ''
+        if not self.is_canal_open:
+            err = self.canal_open()
+            if err:
+                return err
+
+        array_cw = self.Cw * 1
+        cw = array_cw((self.can_canal_number, 0x01, 0))
+        self.lib.CiWaitEvent.argtypes = [ctypes.POINTER(array_cw), ctypes.c_int32, ctypes.c_int16]
+        buffer = self.Buffer()
+
+        for itr_global in range(self.max_iteration):
+            # CiRcQueCancel Принудительно очищает (стирает) содержимое приемной очереди канала.
+            # наверное, надо почистить очередь перед опросом. но это неточно. совсем неточно
+            result = 0
+            try:
+                result = self.lib.CiRcQueCancel(self.can_canal_number, ctypes.pointer(create_unicode_buffer(10)))
+            except Exception as e:
+                print('CiRcQueCancel do not work')
+                pprint(e)
+                exit()
+            # else:
+            #     print('     в CiRcQueCancel так ' + str(result))
+
+            try:
+                result = self.lib.CiWaitEvent(ctypes.pointer(cw), 1, 100)  # timeout = 300 миллисекунд
+            except Exception as e:
+                print('CiWaitEvent do not work')
+                pprint(e)
+                exit()
+            # else:
+            #     print('      в CiWaitEvent так ' + str(result))
+
+            # и когда количество кадров в приемной очереди стало больше
+            # или равно значению порога - 1
+            if result > 0 and cw[0].wflags & 0x01:
+                # и тогда читаем этот кадр из очереди
+                try:
+                    result = self.lib.CiRead(self.can_canal_number, ctypes.pointer(buffer), 1)
+                except Exception as e:
+                    print('CiRead do not work')
+                    pprint(e)
+                    exit()
+                # else:
+                #     print('       в CiRead так ' + str(result))
+                # если удалось прочитать
+                if result >= 0:
+                    # print(hex(buffer.id), end='    ')
+                    # for e in buffer.data:
+                    #     print(hex(e), end=' ')
+                    # print()
+                    return [hex(buffer.id), buffer.len, buffer.flags, buffer.data, buffer.ts]
+                    # ВАЖНО - здесь канал не закрывается, только возвращается данные кадра
+                else:
+                    err = 'Ошибка при чтении с буфера канала ' + str(result)
+            #  если время ожидания хоть какого-то сообщения в шине больше секунды,
+            #  значит , нас отключили, уходим
+            elif result == 0:
+                err = 'Нет CAN шины больше секунды '
+            else:
+                err = 'Нет подключения к CAN шине '
+        #  выход из цикла попыток
+        self.close_marathon_canal()
+        return err
 
     def can_write(self, can_id: int, message: list):
         if not isinstance(message, list):

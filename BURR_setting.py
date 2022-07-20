@@ -66,7 +66,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor, QIcon, QFont
 from PyQt5.QtWidgets import QTableWidgetItem, QApplication, QMessageBox, QFileDialog, QMainWindow
 
-from dll_power import CANMarathon
+from marathon_power import CANMarathon
 import pandas as pandas
 
 
