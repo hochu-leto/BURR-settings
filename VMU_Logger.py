@@ -241,10 +241,11 @@ def fill_vmu_params_values(ans_list: list):
             elif par['type'] == 'FLOAT':
                 par['value'] = struct.unpack('<f', bytearray(message[-4:]))[0]
             print(par['name'] + ' clean = ' + str(par['value']))
-            par['value'] = (par['value'] / par['scale'] - par['scaleB'])
+            if message[0] != 0x4B:
+                par['value'] = (par['value'] / par['scale'] - par['scaleB'])
             print(par['name'] + ' scale = ' + str(par['value']))
-            par['value'] = float('{:.2f}'.format(par['value']))
-            # par['value'] = '{:g}'.format(par['value'])
+            # par['value'] = float('{:.2f}'.format(par['value']))
+            par['value'] = '{:g}'.format(par['value'])
             print(par['name'] + ' format = ' + str(par['value']))
         i += 1
 
@@ -370,12 +371,12 @@ class ExampleApp(QMainWindow):
             row += 1
 
 
+marathon = CANMarathon()
 app = QApplication([])
 window = ExampleApp()  # Создаём объект класса ExampleApp
 dir_path = str(pathlib.Path.cwd())
 vmu_param_file = 'table_for_params.xlsx'
 vmu = VMU(fill_vmu_list(pathlib.Path(dir_path, 'Tables', vmu_param_file)))
-marathon = CANMarathon()
 show_empty_params_list(vmu.param_list, 'vmu_param_table')
 # главные кнопки для КВУ
 window.connect_vmu_btn.clicked.connect(connect_vmu)
